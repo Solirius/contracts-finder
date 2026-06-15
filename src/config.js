@@ -7,7 +7,10 @@ export const config = {
   rateLimit: 1200, // ms between requests (stay well under the 5-min ban threshold)
 
   // ── SEARCH DEFAULTS ──────────────────────────────────────────────────────
-  defaultStages: ["planning", "tender"],      // planning = Future Opportunities
+  // planning = Future Opportunity + Early Market Engagement
+  // tender   = Opportunity (live ITT)
+  // Amendments, awards and contract notices are excluded in filter.js
+  defaultStages: ["planning", "tender"],
   defaultLookbackDays: 30,
   pageSize: 100,
 

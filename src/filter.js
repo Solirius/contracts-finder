@@ -80,10 +80,16 @@ export function scoreRelease(release) {
  * @param {any[]} releases
  * @returns {ScoredRelease[]}
  */
+// Only surface new opportunities — exclude amendments, updates, awards, contracts
+const ALLOWED_STAGES = new Set(["planning", "tender"]);
+
 export function filterAndScore(releases) {
   const results = [];
 
   for (const release of releases) {
+    const stage = release.tag?.[0];
+    if (!ALLOWED_STAGES.has(stage)) continue;
+
     const { score, matchedKeywords } = scoreRelease(release);
     if (score === 0) continue;
 

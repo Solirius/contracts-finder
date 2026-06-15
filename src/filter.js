@@ -30,6 +30,7 @@ const GROUPS = [
   buildGroup("data",       keywords.data,       3),
   buildGroup("education",  keywords.education,  3),
   buildGroup("delivery",   keywords.delivery,   3),
+  buildGroup("health",     keywords.health,     3),
   buildGroup("consulting", keywords.consulting, 2),
 ];
 
@@ -38,7 +39,7 @@ const BUYER_RES = targetBuyers.map((tb) => new RegExp(`\\b${escapeRe(tb)}\\b`, "
 
 // Compound filter: must hit at least one CORE group AND at least one SECTOR group
 const CORE_GROUPS   = new Set(["data", "ai"]);
-const SECTOR_GROUPS = new Set(["housing", "justice", "education", "delivery", "consulting"]);
+const SECTOR_GROUPS = new Set(["housing", "justice", "education", "delivery", "health", "consulting"]);
 
 // Only surface new opportunities — exclude amendments, updates, awards, contracts
 const ALLOWED_STAGES = new Set(["planning", "tender"]);

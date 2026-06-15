@@ -1,16 +1,17 @@
 # Contracts Finder Tender Monitor
 ### Solirius Data & AI Practice
 
-A lightweight Node.js tool that queries the **GOV.UK Contracts Finder API** to surface relevant tenders for the Solirius Data & AI team — focusing on public sector Data, AI, digital transformation, and Housing Association opportunities.
+A Node.js tool that queries the **GOV.UK Contracts Finder API** to surface relevant tenders for the Solirius Data & AI team — scoring opportunities against past winning sectors (justice tech, education data, housing, AI/data, digital delivery) and automatically creating Jira tickets on the GTM board.
 
 ---
 
 ## Quick Start
 
 ```bash
-cd contracts-finder
 npm install
-npm run search
+cp .env.example .env   # fill in your Jira credentials
+npm run search         # one-shot search to verify it's working
+npm run jira           # push results to Jira
 ```
 
 ---
@@ -19,61 +20,118 @@ npm run search
 
 | Command | What it does |
 |---|---|
-| `npm run search` | One-shot search over the last 30 days |
-| `node src/search.js --days 7` | Last 7 days only |
-| `node src/search.js --stages tender` | Live tenders only (no futures) |
-| `node src/search.js --stages planning` | Future opportunities only |
-| `node src/search.js --from 2024-10-01` | From a specific date |
-| `node src/search.js --min-score 5` | High-relevance results only |
+| `npm run search` | One-shot search, prints results to terminal |
+| `npm run jira` | Search and push new tenders to Jira GTM board |
+| `npm run jira -- --dry-run` | Preview what would be pushed without creating issues |
+| `npm run jira -- --days 7` | Limit search to last 7 days |
+| `npm run jira -- --min-score 5` | High-relevance results only |
+| `npm run jira -- --stages tender` | Live opportunities only |
+| `npm run schedule -- --now` | Run the daily Jira push immediately |
+| `npm run schedule` | Start daemon (runs daily at 10:00 UK time, weekdays) |
 | `npm run monitor` | Run once, track new tenders in `data/seen.json` |
-| `node src/monitor.js --cron` | Run daily at 08:00 (weekdays) |
+
+---
+
+## Jira Integration
+
+New tenders are created as **Tasks** on the [GTM board](https://stef-deligia.atlassian.net/jira/software/projects/GTM/boards/1) and land in the **New Lead** column automatically.
+
+### Board columns
+
+| Column | Meaning |
+|---|---|
+| **Triage** | Default entry point for new issues |
+| **New Lead** | Opportunity identified by the scanner |
+| **Bid Writing** | Actively working on a bid |
+| **Submitted** | Bid submitted, awaiting outcome |
+| **Closed** | Won / lost / no bid |
+
+### Each Jira ticket includes
+
+- Buyer name, contract value, tender deadline
+- Relevance score and matched keywords
+- Stage (Future Opportunity / Live Opportunity)
+- Direct link to the Contracts Finder notice
+
+### Priority mapping
+
+| Score | Jira priority |
+|---|---|
+| ★12+ | Highest |
+| ★8–11 | High |
+| ★5–7 | Medium |
+| ★3–4 | Low |
+
+### Credentials (`.env`)
+
+```
+JIRA_HOST=stef-deligia.atlassian.net
+JIRA_EMAIL=your.email@example.com
+JIRA_API_TOKEN=your_api_token_here
+JIRA_PROJECT=GTM
+```
+
+Generate a token at: https://id.atlassian.com/manage-profile/security/api-tokens
+
+Pushed OCIDs are tracked in `data/jira-pushed.json` — the tool never creates duplicate tickets.
+
+---
+
+## Daily Schedule
+
+The tool runs automatically every weekday at **10:00 UK time** via macOS launchd.
+
+```bash
+# Check it's installed
+launchctl list | grep solirius
+
+# Trigger manually
+npm run schedule -- --now
+
+# View logs
+cat output/schedule.log
+```
+
+The plist is at `com.solirius.contracts-finder.plist`. To reinstall after changes:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.solirius.contracts-finder.plist
+cp com.solirius.contracts-finder.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.solirius.contracts-finder.plist
+```
 
 ---
 
 ## How Scoring Works
 
-Each tender is scored against Solirius keyword groups:
+Each tender is scored against keyword groups drawn from Solirius's awarded contract history:
 
 | Group | Points | Example keywords |
 |---|---|---|
-| **Housing** | 5 | housing association, STAIRS, RSH, tenants, repairs |
-| **AI** | 4 | Azure AI, copilot, LLM, generative AI, machine learning |
-| **Data** | 3 | data platform, data strategy, ETL, data lake |
+| **Housing** | 5 | housing association, STAIRS, RSH, social housing |
+| **AI** | 4 | LLM, generative AI, Azure AI, machine learning |
+| **Justice** | 4 | HMCTS, Ministry of Justice, CFT, courts reform |
+| **Data** | 3 | data platform, data science, ETL, learner data |
+| **Education** | 3 | DfE, ESFA, learner record, skills funding |
+| **Delivery** | 3 | software engineering, managed service, G-Cloud, RM6263 |
 | **Consulting** | 2 | digital transformation, cloud migration, Azure |
-| **Target buyer** | +3 | councils, housing providers, MHCLG, GDS |
+| **Target buyer** | +3 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, councils… |
 
-Results are sorted by score descending. Use `--min-score 5` to see only strong matches.
+Only `planning` (Future Opportunity / Early Market Engagement) and `tender` (Opportunity) stage notices are surfaced — amendments, awards and contract notices are excluded.
+
+Results with `score >= 3` are pushed to Jira. Use `--min-score 5` to raise the bar.
 
 ---
 
 ## Customising Filters
 
-Edit **`src/config.js`** to:
+Edit **`src/config.js`** to adjust:
 
-- Add/remove keywords per group
-- Change `minValue` / `maxValue` thresholds (£)
-- Add buyer names to `targetBuyers`
-- Adjust `defaultLookbackDays`
-
----
-
-## Output
-
-Results are written to `output/`:
-
-- `tenders_YYYY-MM-DD.csv` — importable to Excel / Sheets
-- `tenders_YYYY-MM-DD.json` — structured data for downstream use
-
-The monitor also tracks seen OCIDs in `data/seen.json` so repeat runs don't surface duplicates.
-
----
-
-## API Notes
-
-- **No authentication required** for reading published notices (OCDS endpoint)
-- Rate limit: ~100 requests / 5 minutes — the tool automatically paces requests
-- Data source: `https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search`
-- Stages: `planning` (Future Opportunities) · `tender` (Live ITTs) · `award`
+- Keyword groups and point values
+- `targetBuyers` list
+- `minValue` / `maxValue` thresholds (£)
+- `defaultLookbackDays`
+- `defaultStages`
 
 ---
 
@@ -87,13 +145,18 @@ contracts-finder/
 │   ├── filter.js      # Keyword scoring and relevance filtering
 │   ├── export.js      # CSV + JSON output
 │   ├── search.js      # CLI: one-shot search
-│   └── monitor.js     # CLI: scheduled daily monitor
-├── output/            # Generated CSVs and JSON (gitignored)
-├── data/              # seen.json for dedup tracking (gitignored)
+│   ├── monitor.js     # CLI: scheduled CSV monitor (no Jira)
+│   ├── push-to-jira.js # CLI: manual Jira push with flags
+│   ├── schedule.js    # Daily Jira push daemon (10am UK)
+│   └── jira.js        # Jira REST API client
+├── com.solirius.contracts-finder.plist  # macOS launchd config
+├── output/            # CSVs, JSON, schedule.log (gitignored)
+├── data/              # jira-pushed.json dedup cache (gitignored)
+├── .env.example       # Credential template
 ├── package.json
 └── README.md
 ```
 
 ---
 
-*Built for Solirius Data & AI Practice — Housing Association sector focus.*
+*Built for Solirius Data & AI Practice.*

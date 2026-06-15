@@ -12,9 +12,10 @@ export const config = {
   pageSize: 100,
 
   // ── KEYWORD FILTERS (case-insensitive, any match = include) ─────────────
-  // These are tuned for Solirius Data & AI / Housing Association work
+  // Tuned for Solirius's core sectors: data/AI, housing, justice tech,
+  // education data, architecture & delivery — drawn from awarded contract history.
   keywords: {
-    // Core capability keywords
+    // Data engineering & analytics (core Solirius capability)
     data: [
       "data platform",
       "data strategy",
@@ -30,12 +31,19 @@ export const config = {
       "ETL",
       "data migration",
       "data quality",
+      "data science",
+      "data transformation",
+      "data collection",
+      "learner data",
+      "management information",
+      "MI build",
+      "data directorate",
     ],
+
+    // AI & machine learning
     ai: [
       "artificial intelligence",
-      "AI",
       "machine learning",
-      "ML",
       "large language model",
       "LLM",
       "natural language processing",
@@ -47,16 +55,75 @@ export const config = {
       "Azure AI",
       "Microsoft AI",
     ],
+
+    // Justice & courts technology (Solirius's largest client sector)
+    justice: [
+      "HMCTS",
+      "HM Courts",
+      "Ministry of Justice",
+      "court digitisation",
+      "courts reform",
+      "pre-recorded evidence",
+      "CFT",
+      "digital justice",
+      "probation",
+      "criminal justice",
+    ],
+
+    // Education & skills data (DfE, ESFA — major repeat buyer)
+    education: [
+      "Department for Education",
+      "DfE",
+      "ESFA",
+      "education data",
+      "learner record",
+      "further education",
+      "skills funding",
+      "school data",
+      "Ofsted",
+      "apprenticeship",
+    ],
+
+    // Software delivery, architecture & technical services
+    delivery: [
+      "software engineering",
+      "technical architecture",
+      "solution architecture",
+      "system integration",
+      "systems integration",
+      "quality assurance",
+      "test centre",
+      "agile development",
+      "agile delivery",
+      "user centred design",
+      "user research",
+      "service design",
+      "product delivery",
+      "delivery partner",
+      "managed service",
+      "digital delivery",
+      "digital specialists",
+      "digital outcomes",
+      "G-Cloud",
+      "RM6263",
+    ],
+
+    // Consulting & strategy
     consulting: [
       "digital transformation",
       "technology strategy",
       "technology consulting",
       "IT strategy",
-      "solution architecture",
       "cloud migration",
       "Azure",
       "Microsoft 365",
+      "Google Cloud",
+      "cloud platform",
+      "BDUK",
+      "Building Digital UK",
     ],
+
+    // Housing & social sector
     housing: [
       "housing association",
       "housing provider",
@@ -76,16 +143,38 @@ export const config = {
   },
 
   // ── BUYER KEYWORDS (flag tenders from these organisations) ───────────────
+  // Drawn from Solirius's awarded contract history — these buyers have
+  // procured from Solirius before and represent high-probability targets.
   targetBuyers: [
+    // Justice
+    "Ministry of Justice",
+    "HMCTS",
+    "Crown Prosecution Service",
+    "probation",
+    // Education & skills
+    "Department for Education",
+    "ESFA",
+    "Education and Skills Funding",
+    // Central government
+    "Home Office",
+    "Cabinet Office",
+    "DSIT",
+    "DCMS",
+    "FCDO",
+    "Foreign Commonwealth",
+    "Planning Inspectorate",
+    "Ofgem",
+    "Money and Pensions",
+    "Ministry of Defence",
+    "GDS",
+    // Housing & local government
     "housing",
     "council",
     "local authority",
     "MHCLG",
     "Department for Levelling Up",
-    "NHS",
-    "Cabinet Office",
-    "GDS",
     "DLUHC",
+    "NHS",
   ],
 
   // ── VALUE THRESHOLDS ─────────────────────────────────────────────────────

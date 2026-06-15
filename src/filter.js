@@ -12,7 +12,10 @@ const addKeywords = (group, points) =>
 
 addKeywords(keywords.housing,    5);  // highest relevance for HA sector
 addKeywords(keywords.ai,         4);
+addKeywords(keywords.justice,    4);  // MoJ/HMCTS — largest historical client sector
 addKeywords(keywords.data,       3);
+addKeywords(keywords.education,  3);  // DfE/ESFA — major repeat buyer
+addKeywords(keywords.delivery,   3);  // core Solirius service types
 addKeywords(keywords.consulting, 2);
 
 /**

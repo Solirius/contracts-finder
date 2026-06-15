@@ -107,13 +107,16 @@ export async function createJiraIssue(tender) {
     throw new Error("JIRA_EMAIL and JIRA_API_TOKEN must be set in .env");
   }
 
+  const headers = {
+    "Authorization": authHeader(),
+    "Content-Type":  "application/json",
+    "Accept":        "application/json",
+  };
+
+  // Create the issue
   const res = await fetch(`https://${JIRA_HOST}/rest/api/3/issue`, {
     method: "POST",
-    headers: {
-      "Authorization": authHeader(),
-      "Content-Type":  "application/json",
-      "Accept":        "application/json",
-    },
+    headers,
     body: JSON.stringify({ fields: buildJiraFields(tender) }),
   });
 
@@ -124,6 +127,14 @@ export async function createJiraIssue(tender) {
   }
 
   const { key, id } = await res.json();
+
+  // Transition to "New Lead" column (transition id 11 → status "Idea"/New Lead)
+  await fetch(`https://${JIRA_HOST}/rest/api/3/issue/${key}/transitions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ transition: { id: "11" } }),
+  }).catch(() => { /* non-fatal — issue is created, column placement is best-effort */ });
+
   return { key, id };
 }
 

@@ -6,7 +6,8 @@
   "scripts": {
     "search": "node src/search.js",
     "monitor": "node src/monitor.js",
-    "export": "node src/export.js"
+    "export": "node src/export.js",
+    "jira": "node src/push-to-jira.js"
   },
   "dependencies": {
     "chalk": "^5.3.0",

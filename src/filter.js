@@ -136,7 +136,8 @@ export function filterAndScore(releases) {
       currency:      t.value?.currency ?? "GBP",
       deadline,
       publishedDate: release.date ?? null,
-      url: `https://www.contractsfinder.service.gov.uk/Search/Results?page=1#${release.ocid?.replace(/^ocds-[a-z0-9]+-/, "") ?? ""}`,
+      url: release.tender?.documents?.[0]?.url
+        ?? `https://www.contractsfinder.service.gov.uk/Notice/${release.ocid?.replace(/^ocds-[a-z0-9]+-/, "") ?? ""}`,
       score,
       matchedKeywords,
     });

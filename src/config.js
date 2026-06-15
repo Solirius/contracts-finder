@@ -97,7 +97,6 @@ export const config = {
       "learner data",
       "learner record",
       "management information system",
-      "digital",
     ],
 
     // ── Artificial intelligence & machine learning ────────────────────────

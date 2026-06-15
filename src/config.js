@@ -97,6 +97,7 @@ export const config = {
       "learner data",
       "learner record",
       "management information system",
+      "digital",
     ],
 
     // ── Artificial intelligence & machine learning ────────────────────────
@@ -148,7 +149,6 @@ export const config = {
       "vector search",
       "semantic search",
       "retrieval augmented generation",
-      "RAG",
       "embedding",
       "AI assistant",
       "virtual assistant",
@@ -239,7 +239,6 @@ export const config = {
       "independent school",
       "academy",
       "multi-academy trust",
-      "MAT",
       "pupil referral unit",
       "PRU",
       "alternative provision",
@@ -288,8 +287,8 @@ export const config = {
       "JISC",
       "research data management",
       "knowledge transfer",
-      "REF",
-      "TEF",
+      "Research Excellence Framework",
+      "Teaching Excellence Framework",
       "academic",
       "faculty",
       "campus",
@@ -483,7 +482,6 @@ export const config = {
       "resident portal",
       "housing CRM",
       // Repairs & compliance
-      "repairs",
       "responsive repairs",
       "planned maintenance",
       "cyclical maintenance",

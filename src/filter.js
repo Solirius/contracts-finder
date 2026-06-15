@@ -6,16 +6,35 @@ import { config } from "./config.js";
 const { keywords, targetBuyers, minValue, maxValue, excludeRefs } = config;
 const EXCLUDED_REFS = new Set((excludeRefs ?? []).map((r) => r.toUpperCase()));
 
-// Groups in descending point order (higher-value group wins if a keyword appears in both)
+function escapeRe(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Pre-compile word-boundary regexes so short acronyms don't match substrings
+// (e.g. "ELT" must not match "belt", "MAT" must not match "material")
+function buildGroup(name, kws, points) {
+  return {
+    name,
+    points,
+    entries: kws.map((kw) => ({
+      kw,
+      re: new RegExp(`\\b${escapeRe(kw)}\\b`, "i"),
+    })),
+  };
+}
+
 const GROUPS = [
-  { name: "housing",    keywords: keywords.housing,    points: 5 },
-  { name: "ai",        keywords: keywords.ai,          points: 4 },
-  { name: "justice",   keywords: keywords.justice,     points: 4 },
-  { name: "data",      keywords: keywords.data,        points: 3 },
-  { name: "education", keywords: keywords.education,   points: 3 },
-  { name: "delivery",  keywords: keywords.delivery,    points: 3 },
-  { name: "consulting",keywords: keywords.consulting,  points: 2 },
+  buildGroup("housing",    keywords.housing,    5),
+  buildGroup("ai",         keywords.ai,         4),
+  buildGroup("justice",    keywords.justice,    4),
+  buildGroup("data",       keywords.data,       3),
+  buildGroup("education",  keywords.education,  3),
+  buildGroup("delivery",   keywords.delivery,   3),
+  buildGroup("consulting", keywords.consulting, 2),
 ];
+
+// Pre-compile target buyer regexes too
+const BUYER_RES = targetBuyers.map((tb) => new RegExp(`\\b${escapeRe(tb)}\\b`, "i"));
 
 // Compound filter: must hit at least one CORE group AND at least one SECTOR group
 const CORE_GROUPS   = new Set(["data", "ai"]);
@@ -35,9 +54,7 @@ function releaseText(release) {
     buyer.name ?? "",
     (t.items ?? []).map((i) => `${i.description ?? ""} ${i.classification?.description ?? ""}`).join(" "),
     (t.additionalProcurementCategories ?? []).join(" "),
-  ]
-    .join(" ")
-    .toLowerCase();
+  ].join(" ");
 }
 
 function extractValue(release) {
@@ -55,10 +72,10 @@ export function scoreRelease(release) {
   const matchedGroups = new Set();
   let score = 0;
 
-  for (const { name, keywords: groupKws, points } of GROUPS) {
-    for (const kw of groupKws) {
+  for (const { name, entries, points } of GROUPS) {
+    for (const { kw, re } of entries) {
       const kwLower = kw.toLowerCase();
-      if (!seenKw.has(kwLower) && text.includes(kwLower)) {
+      if (!seenKw.has(kwLower) && re.test(text)) {
         seenKw.add(kwLower);
         matchedKeywords.push(kw);
         score += points;
@@ -67,10 +84,10 @@ export function scoreRelease(release) {
     }
   }
 
-  // Bonus: buyer name matches a target org
-  const buyerName = (release.buyer?.name ?? "").toLowerCase();
-  for (const tb of targetBuyers) {
-    if (buyerName.includes(tb.toLowerCase())) {
+  // Bonus: buyer name matches a target org (word-boundary matched)
+  const buyerName = release.buyer?.name ?? "";
+  for (const re of BUYER_RES) {
+    if (re.test(buyerName)) {
       score += 3;
       break;
     }

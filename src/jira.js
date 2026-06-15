@@ -8,15 +8,21 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { config } from "./config.js";
 
-const JIRA_HOST    = process.env.JIRA_HOST    ?? "stefania-deligia.atlassian.net";
-const JIRA_EMAIL   = process.env.JIRA_EMAIL   ?? "";
-const JIRA_TOKEN   = process.env.JIRA_API_TOKEN ?? "";
-const JIRA_PROJECT = process.env.JIRA_PROJECT ?? "KAN";
-
 const CACHE_PATH = join(config.dataDir, "jira-pushed.json");
 
+// Read lazily so .env loaded by the caller is visible
+function jiraEnv() {
+  return {
+    host:    process.env.JIRA_HOST    ?? "stef-deligia.atlassian.net",
+    email:   process.env.JIRA_EMAIL   ?? "",
+    token:   process.env.JIRA_API_TOKEN ?? "",
+    project: process.env.JIRA_PROJECT ?? "KAN",
+  };
+}
+
 function authHeader() {
-  const encoded = Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString("base64");
+  const { email, token } = jiraEnv();
+  const encoded = Buffer.from(`${email}:${token}`).toString("base64");
   return `Basic ${encoded}`;
 }
 
@@ -76,6 +82,8 @@ function buildDescription(tender) {
 }
 
 export function buildJiraFields(tender) {
+  const { project: JIRA_PROJECT } = jiraEnv();
+
   const summary = tender.title.length > 255
     ? tender.title.slice(0, 252) + "…"
     : tender.title;
@@ -88,7 +96,7 @@ export function buildJiraFields(tender) {
 
   const fields = {
     project:     { key: JIRA_PROJECT },
-    issuetype:   { id: "10003" }, // Task
+    issuetype:   { id: "10001" }, // Task
     summary,
     description: buildDescription(tender),
     labels,
@@ -103,7 +111,8 @@ export function buildJiraFields(tender) {
 }
 
 export async function createJiraIssue(tender) {
-  if (!JIRA_EMAIL || !JIRA_TOKEN) {
+  const { host: JIRA_HOST, email, token } = jiraEnv();
+  if (!email || !token) {
     throw new Error("JIRA_EMAIL and JIRA_API_TOKEN must be set in .env");
   }
 
@@ -128,11 +137,11 @@ export async function createJiraIssue(tender) {
 
   const { key, id } = await res.json();
 
-  // Transition to "New Lead" column (transition id 11 → status "Idea"/New Lead)
+  // Transition to "New Lead" column (transition id 3 → status "New Lead")
   await fetch(`https://${JIRA_HOST}/rest/api/3/issue/${key}/transitions`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ transition: { id: "11" } }),
+    body: JSON.stringify({ transition: { id: "3" } }),
   }).catch(() => { /* non-fatal — issue is created, column placement is best-effort */ });
 
   return { key, id };

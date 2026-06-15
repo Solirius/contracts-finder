@@ -16,7 +16,7 @@ import { createJiraIssue, loadPushedCache, savePushedCache } from "./jira.js";
 
 // ── Load .env ─────────────────────────────────────────────────────────────────
 try {
-  for (const line of readFileSync(new URL("../../.env", import.meta.url), "utf8").split("\n")) {
+  for (const line of readFileSync(".env", "utf8").split("\n")) {
     const eq = line.indexOf("=");
     if (eq > 0 && !line.startsWith("#")) {
       const key = line.slice(0, eq).trim();

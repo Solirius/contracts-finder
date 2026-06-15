@@ -88,5 +88,5 @@ if (process.argv.includes("--now")) {
   console.log(chalk.grey("  Tip: run with --now to execute immediately\n"));
   // Run immediately on start, then every weekday at 08:00 UK time
   await runJiraPush();
-  schedule("0 8 * * 1-5", runJiraPush, { timezone: "Europe/London" });
+  schedule("0 10 * * 1-5", runJiraPush, { timezone: "Europe/London" });
 }

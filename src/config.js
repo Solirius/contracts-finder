@@ -607,6 +607,13 @@ export const config = {
     "Northern Ireland Executive",
   ],
 
+  // ── EXCLUDED REFERENCES ──────────────────────────────────────────────────
+  // Add Contracts Finder reference numbers (e.g. "CA18069") to suppress
+  // specific notices that match keywords but are not relevant.
+  excludeRefs: [
+    "CA18069",
+  ],
+
   // ── VALUE THRESHOLDS ─────────────────────────────────────────────────────
   minValue: 50_000,   // ignore tiny tenders below this (£)
   maxValue: null,     // no upper cap

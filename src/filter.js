@@ -3,7 +3,8 @@
 
 import { config } from "./config.js";
 
-const { keywords, targetBuyers, minValue, maxValue } = config;
+const { keywords, targetBuyers, minValue, maxValue, excludeRefs } = config;
+const EXCLUDED_REFS = new Set((excludeRefs ?? []).map((r) => r.toUpperCase()));
 
 // Flatten all keyword groups into a scored map: keyword -> points
 const KEYWORD_SCORES = new Map();
@@ -90,6 +91,10 @@ export function filterAndScore(releases) {
     const stage = release.tag?.[0];
     if (!ALLOWED_STAGES.has(stage)) continue;
 
+    // Skip explicitly excluded references (title or id match)
+    const refText = `${release.id ?? ""} ${release.tender?.id ?? ""} ${release.tender?.title ?? ""}`.toUpperCase();
+    if ([...EXCLUDED_REFS].some((ref) => refText.includes(ref))) continue;
+
     const { score, matchedKeywords } = scoreRelease(release);
     if (score === 0) continue;
 
@@ -111,7 +116,8 @@ export function filterAndScore(releases) {
       currency:   t.value?.currency ?? "GBP",
       deadline,
       publishedDate: release.date ?? null,
-      url: `https://www.contractsfinder.service.gov.uk/Notice/${release.ocid?.split("-").pop()}`,
+      // Strip the "ocds-<publisherPrefix>-" prefix to get the UUID for the search results anchor
+      url: `https://www.contractsfinder.service.gov.uk/Search/Results?page=1#${release.ocid?.replace(/^ocds-[a-z0-9]+-/, "") ?? ""}`,
       score,
       matchedKeywords,
     });

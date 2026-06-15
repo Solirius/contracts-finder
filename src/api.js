@@ -42,12 +42,11 @@ export async function fetchPage({ publishedFrom, publishedTo, stages, cursor, li
 
   const body = await res.json();
 
-  // The OCDS response embeds the next cursor as a query param in body.uri
-  // when there are more results. Extract it.
+  // Pagination cursor is in body.links.next (not body.uri)
   let nextCursor = null;
-  if (body.uri) {
+  if (body.links?.next) {
     try {
-      const u = new URL(body.uri);
+      const u = new URL(body.links.next);
       nextCursor = u.searchParams.get("cursor") || null;
     } catch (_) {
       // ignore

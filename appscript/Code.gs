@@ -223,6 +223,18 @@ function scoreRelease(release) {
   return { score: score, matched: matched };
 }
 
+function noticeUrl(release, source) {
+  if (release._url) return release._url;
+  var docs = (release.tender && release.tender.documents) || [];
+  for (var i = 0; i < docs.length; i++) {
+    if (docs[i].url && /notice/i.test(docs[i].documentType || "")) return docs[i].url;
+  }
+  if (source === "Find a Tender") {
+    return "https://www.find-tender.service.gov.uk/Notice/" + (release.id || "");
+  }
+  return "https://www.contractsfinder.service.gov.uk/Notice/" + (release.id || "").replace(/-\d+$/, "");
+}
+
 function extractFields(release, source) {
   var t = release.tender || {};
   var buyer = (release.parties || []).filter(function(p) {
@@ -246,7 +258,7 @@ function extractFields(release, source) {
     valueAmount:   value,
     published:     release.date || "",
     deadline:      deadline,
-    url:           release._url || "https://www.contractsfinder.service.gov.uk/Notice/" + (release.id || ""),
+    url:           noticeUrl(release, source),
   };
 }
 

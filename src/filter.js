@@ -45,6 +45,25 @@ export function scoreRelease(release) {
   return { score, matched };
 }
 
+function noticeUrl(release, source) {
+  // Authenticated portals (BravoSolution / JAGGAER) set _url directly
+  if (release._url) return release._url;
+
+  // OCDS sources: prefer a tenderNotice / contractNotice document URL
+  const doc = (release.tender?.documents ?? [])
+    .find(d => d.url && /notice/i.test(d.documentType ?? ""));
+  if (doc?.url) return doc.url;
+
+  // Find a Tender: release.id is the FTS notice number (e.g. "056764-2026")
+  if (source === "Find a Tender") {
+    return `https://www.find-tender.service.gov.uk/Notice/${release.id}`;
+  }
+
+  // Contracts Finder: release.id has a trailing numeric suffix (e.g. "-902381")
+  // that is not part of the notice URL
+  return `https://www.contractsfinder.service.gov.uk/Notice/${release.id.replace(/-\d+$/, "")}`;
+}
+
 export function extractFields(release, source) {
   const t = release.tender ?? {};
   const buyer = release.parties?.find((p) => p.roles?.includes("buyer"));
@@ -64,6 +83,6 @@ export function extractFields(release, source) {
     valueAmount: value,
     published: release.date ?? "",
     deadline,
-    url: release._url ?? `https://www.contractsfinder.service.gov.uk/Notice/${release.id}`,
+    url: noticeUrl(release, source),
   };
 }

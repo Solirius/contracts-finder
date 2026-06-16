@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// push-to-jira.js — Search Contracts Finder and push new tenders to Jira KAN board
+// push-to-jira.js — Search all sources and push new tenders to Jira KAN board
 //
 // Usage:
 //   npm run jira                                 # last 30 days, planning + tender
@@ -10,9 +10,8 @@
 
 import { readFileSync } from "fs";
 import chalk from "chalk";
-import { subDays, format } from "date-fns";
-import { fetchAll } from "./api.js";
-import { filterAndScore } from "./filter.js";
+import { fetchAllNotices } from "./api.js";
+import { scoreRelease, extractFields } from "./filter.js";
 import { config } from "./config.js";
 import { createJiraIssue, loadPushedCache, savePushedCache } from "./jira.js";
 
@@ -30,59 +29,51 @@ try {
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-const getArg = (flag, def) => {
-  const idx = args.indexOf(flag);
-  return idx !== -1 ? args[idx + 1] : def;
+const getArg = (flag) => {
+  const i = args.indexOf(flag);
+  return i !== -1 ? args[i + 1] : null;
 };
 
-const days      = parseInt(getArg("--days", String(config.defaultLookbackDays)));
-const fromArg   = getArg("--from", null);
-const toArg     = getArg("--to", null);
-const stagesArg = getArg("--stages", null);
-const minScore  = parseInt(getArg("--min-score", "3"));
+const days      = parseInt(getArg("--days") ?? config.defaultDays, 10);
+const stagesArg = getArg("--stages");
+const minScore  = parseInt(getArg("--min-score") ?? config.minScore, 10);
 const dryRun    = args.includes("--dry-run");
 
-const stages = stagesArg ? stagesArg.split(",") : config.defaultStages;
-const now = new Date();
-const publishedFrom = fromArg
-  ? `${fromArg}T00:00:00`
-  : `${format(subDays(now, days), "yyyy-MM-dd")}T00:00:00`;
-const publishedTo = toArg ? `${toArg}T23:59:59` : now.toISOString();
+const stages = stagesArg ? stagesArg.split(",") : config.stages;
 
 // ── Banner ────────────────────────────────────────────────────────────────────
-console.log("");
-console.log(chalk.bold.blue("┌─────────────────────────────────────────────────┐"));
-console.log(chalk.bold.blue("│  Solirius · Contracts Finder → Jira Push        │"));
-console.log(chalk.bold.blue("└─────────────────────────────────────────────────┘"));
-console.log(chalk.grey(`  From      : ${publishedFrom}`));
-console.log(chalk.grey(`  To        : ${publishedTo}`));
-console.log(chalk.grey(`  Stages    : ${stages.join(", ")}`));
-console.log(chalk.grey(`  Min score : ${minScore}`));
-if (dryRun) console.log(chalk.yellow("  DRY RUN   : no Jira issues will be created"));
+console.log(chalk.bold.blue("\nSolirius Data & AI — Tender -> Jira Push"));
+console.log(chalk.gray(`Sources: ${Object.values(config.sources).filter((s) => s.enabled).map((s) => s.label).join(", ")}`));
+console.log(chalk.gray(`Window: last ${days} days | Stages: ${stages.join(", ")} | Min score: ${minScore}`));
+if (dryRun) console.log(chalk.yellow("  DRY RUN — no Jira issues will be created"));
 console.log("");
 
 // ── Fetch + filter ────────────────────────────────────────────────────────────
-const spinner = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"];
-let tick = 0;
-let allRaw = 0;
-let allScored = [];
+const allScored = [];
+let total = 0;
 
-for await (const batch of fetchAll({ publishedFrom, publishedTo, stages }, (n) => {
-  process.stdout.write(
-    `\r  ${chalk.cyan(spinner[tick++ % spinner.length])}  Fetched ${n} notices...`
-  );
-})) {
-  allRaw += batch.length;
-  allScored.push(...filterAndScore(batch).filter((t) => t.score >= minScore));
+try {
+  for await (const { release, source } of fetchAllNotices({ days, stages })) {
+    total++;
+    const { score, matched } = scoreRelease(release);
+    if (score >= minScore) {
+      const fields = extractFields(release, source);
+      allScored.push({ ...fields, score, matched });
+    }
+  }
+} catch (err) {
+  console.error(chalk.red(`\nError fetching notices: ${err.message}`));
+  process.exit(1);
 }
-allScored.sort((a, b) => b.score - a.score);
 
-process.stdout.write(`\r  ✓  Fetched ${allRaw} total notices.           \n\n`);
+console.log(chalk.gray(`\nScanned ${total} notices, ${allScored.length} above threshold.`));
 
 if (allScored.length === 0) {
   console.log(chalk.yellow("  No relevant tenders found. Nothing to push."));
   process.exit(0);
 }
+
+allScored.sort((a, b) => b.score - a.score);
 
 // ── Dedup against already-pushed cache ───────────────────────────────────────
 const cache = loadPushedCache();
@@ -92,7 +83,7 @@ const skipped    = allScored.length - newTenders.length;
 console.log(
   chalk.bold(`  ${allScored.length} relevant tender(s) — `) +
   chalk.green(`${newTenders.length} new`) +
-  chalk.grey(`, ${skipped} already in Jira\n`)
+  chalk.gray(`, ${skipped} already in Jira\n`)
 );
 
 if (newTenders.length === 0) {
@@ -105,11 +96,11 @@ let pushed = 0;
 let failed = 0;
 
 for (const tender of newTenders) {
-  const scoreColor = tender.score >= 8 ? chalk.green : tender.score >= 5 ? chalk.yellow : chalk.grey;
-  const prefix     = `  ${scoreColor(`★${tender.score}`)}  ${tender.title.slice(0, 65).padEnd(65)}`;
+  const scoreColor = tender.score >= 8 ? chalk.green : tender.score >= 5 ? chalk.yellow : chalk.gray;
+  const prefix     = `  ${scoreColor(`*${tender.score}`)}  [${tender.source}] ${tender.title.slice(0, 55).padEnd(55)}`;
 
   if (dryRun) {
-    console.log(`${prefix}  ${chalk.grey("[dry-run]")}`);
+    console.log(`${prefix}  ${chalk.gray("[dry-run]")}`);
     continue;
   }
 
@@ -128,8 +119,8 @@ for (const tender of newTenders) {
 if (!dryRun) {
   savePushedCache(cache);
   console.log("");
-  if (pushed)  console.log(chalk.green(`  ✓ ${pushed} issue(s) created in Jira`));
-  if (failed)  console.log(chalk.red(`  ✗ ${failed} issue(s) failed`));
-  if (skipped) console.log(chalk.grey(`    ${skipped} skipped (already existed)`));
+  if (pushed)  console.log(chalk.green(`  ${pushed} issue(s) created in Jira`));
+  if (failed)  console.log(chalk.red(`  ${failed} issue(s) failed`));
+  if (skipped) console.log(chalk.gray(`    ${skipped} skipped (already existed)`));
 }
 console.log("");

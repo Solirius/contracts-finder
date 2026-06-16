@@ -1,47 +1,45 @@
-// export.js — Write results to CSV and JSON
-
+// export.js — writes results to CSV and JSON
 import { stringify } from "csv-stringify/sync";
-import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
+import { format } from "date-fns";
 import { join } from "path";
-import { config } from "./config.js";
 
-function ensureDir(dir) {
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-}
+const OUTPUT_DIR = "./output";
 
-/**
- * Write scored tenders to CSV and JSON.
- * @param {ScoredRelease[]} tenders
- * @param {string} [label]  e.g. "2024-11-15"
- * @returns {{ csvPath: string, jsonPath: string }}
- */
-export function exportResults(tenders, label) {
-  ensureDir(config.outputDir);
+export function writeResults(results) {
+  mkdirSync(OUTPUT_DIR, { recursive: true });
+  const timestamp = format(new Date(), "yyyyMMdd-HHmm");
 
-  const slug = label ?? new Date().toISOString().slice(0, 10);
-  const csvPath  = join(config.outputDir, `tenders_${slug}.csv`);
-  const jsonPath = join(config.outputDir, `tenders_${slug}.json`);
+  // Sort by score desc, then by published date desc
+  const sorted = [...results].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return (b.published ?? "").localeCompare(a.published ?? "");
+  });
 
-  // ── JSON ─────────────────────────────────────────────────────────────────
-  writeFileSync(jsonPath, JSON.stringify(tenders, null, 2), "utf8");
+  // JSON
+  const jsonPath = join(OUTPUT_DIR, `tenders-${timestamp}.json`);
+  writeFileSync(jsonPath, JSON.stringify(sorted, null, 2), "utf8");
 
-  // ── CSV ──────────────────────────────────────────────────────────────────
-  const rows = tenders.map((t) => ({
-    Score:            t.score,
-    Stage:            t.stage,
-    Title:            t.title,
-    Buyer:            t.buyer,
-    Value:            t.value != null ? `${t.currency} ${t.value.toLocaleString()}` : "",
-    Deadline:         t.deadline ?? "",
-    Published:        t.publishedDate ?? "",
-    Keywords:         t.matchedKeywords.join("; "),
-    Description:      t.description,
-    URL:              t.url,
-    OCID:             t.ocid,
+  // CSV — flatten matched keywords
+  const csvRows = sorted.map((r) => ({
+    score: r.score,
+    source: r.source,
+    stage: r.stage,
+    title: r.title,
+    buyer: r.buyer,
+    buyerRegion: r.buyerRegion,
+    valueGBP: r.valueAmount ?? "",
+    published: r.published,
+    deadline: r.deadline ?? "",
+    matchedKeywords: (r.matched ?? []).join("; "),
+    description: r.description,
+    noticeId: r.noticeId,
+    url: r.url,
   }));
 
-  const csv = stringify(rows, { header: true });
+  const csvPath = join(OUTPUT_DIR, `tenders-${timestamp}.csv`);
+  const csv = stringify(csvRows, { header: true });
   writeFileSync(csvPath, csv, "utf8");
 
-  return { csvPath, jsonPath };
+  return { jsonPath, csvPath, count: sorted.length };
 }

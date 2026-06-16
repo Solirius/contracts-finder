@@ -1,100 +1,70 @@
 #!/usr/bin/env node
-// monitor.js — Scheduled daily monitor (runs via cron or node-cron)
-//
-// Usage:
-//   node src/monitor.js            # run once immediately
-//   node src/monitor.js --cron     # run every morning at 08:00 UK time
-//
-// Tracks seen OCIDs in data/seen.json so only new tenders are reported.
-
+// monitor.js — daily cron job, alerts on new notices only
+import cron from "node-cron";
 import chalk from "chalk";
-import { schedule } from "node-cron";
-import { subDays, format } from "date-fns";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
-import { fetchAll } from "./api.js";
-import { filterAndScore } from "./filter.js";
-import { exportResults } from "./export.js";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { fetchAllNotices } from "./api.js";
+import { scoreRelease, extractFields } from "./filter.js";
+import { writeResults } from "./export.js";
 import { config } from "./config.js";
 
-const SEEN_FILE = join(config.dataDir, "seen.json");
-
-function ensureDir(dir) {
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-}
+const SEEN_FILE = "./output/.seen-notices.json";
 
 function loadSeen() {
-  ensureDir(config.dataDir);
   if (!existsSync(SEEN_FILE)) return new Set();
-  try {
-    const raw = JSON.parse(readFileSync(SEEN_FILE, "utf8"));
-    return new Set(Array.isArray(raw) ? raw : []);
-  } catch {
-    return new Set();
-  }
+  return new Set(JSON.parse(readFileSync(SEEN_FILE, "utf8")));
 }
 
 function saveSeen(seen) {
-  writeFileSync(SEEN_FILE, JSON.stringify([...seen], null, 2), "utf8");
+  writeFileSync(SEEN_FILE, JSON.stringify([...seen]), "utf8");
 }
 
 async function runCheck() {
+  console.log(chalk.bold(`\n[${new Date().toISOString()}] Running daily tender check...`));
   const seen = loadSeen();
-  const now  = new Date();
+  const newResults = [];
+  let total = 0;
 
-  const publishedFrom = `${format(subDays(now, 2), "yyyy-MM-dd")}T00:00:00`;
-  const publishedTo   = now.toISOString();
-
-  console.log(chalk.bold.blue(`\n[${now.toISOString()}] Running tender check…`));
-
-  let allNew = [];
-
-  for await (const batch of fetchAll({
-    publishedFrom,
-    publishedTo,
-    stages: config.defaultStages,
+  for await (const { release, source } of fetchAllNotices({
+    days: 2, // only look back 2 days in monitor mode
+    stages: config.stages,
   })) {
-    const scored = filterAndScore(batch).filter(
-      (t) => t.score >= 3 && !seen.has(t.ocid)
-    );
-    allNew.push(...scored);
-  }
+    total++;
+    const key = `${source}::${release.id ?? release.ocid}`;
+    if (seen.has(key)) continue;
 
-  // Deduplicate within this run
-  const byOcid = new Map(allNew.map((t) => [t.ocid, t]));
-  const fresh = [...byOcid.values()].sort((a, b) => b.score - a.score);
-
-  if (fresh.length === 0) {
-    console.log(chalk.grey("  No new relevant tenders since last check."));
-  } else {
-    console.log(chalk.green(`  🔔 ${fresh.length} new tender(s)!\n`));
-
-    fresh.forEach((t) => {
-      console.log(`  ★${t.score}  [${t.stage}] ${chalk.bold(t.title)}`);
-      console.log(`         ${t.buyer}`);
-      console.log(`         ${t.url}\n`);
-
-      seen.add(t.ocid);
-    });
-
-    const label = format(now, "yyyy-MM-dd_HHmm");
-    const { csvPath } = exportResults(fresh, label);
-    console.log(chalk.green(`  Saved → ${csvPath}`));
+    const { score, matched } = scoreRelease(release);
+    if (score >= config.minScore) {
+      const fields = extractFields(release, source);
+      newResults.push({ ...fields, score, matched });
+      seen.add(key);
+    }
   }
 
   saveSeen(seen);
-  console.log("");
+
+  if (newResults.length === 0) {
+    console.log(chalk.gray(`Scanned ${total} notices. Nothing new above threshold.`));
+    return;
+  }
+
+  const { csvPath } = writeResults(newResults);
+  console.log(chalk.bold.green(`\n${newResults.length} new tender(s) found!`));
+  newResults.forEach((r) =>
+    console.log(
+      `  ${chalk.cyan(`[${r.source}]`)} score=${r.score} — ${r.title.slice(0, 70)}`
+    )
+  );
+  console.log(`\n  → ${csvPath}`);
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────
-const useCron = process.argv.includes("--cron");
+const args = process.argv.slice(2);
 
-if (useCron) {
-  console.log(chalk.bold.blue("Solirius Contracts Monitor — running daily at 08:00…"));
-  // Every weekday at 08:00
-  schedule("0 8 * * 1-5", runCheck, { timezone: "Europe/London" });
-  // Also run immediately on start
-  runCheck();
+if (args.includes("--cron")) {
+  // Run at 08:00 every weekday
+  console.log(chalk.blue("Monitor started — will run at 08:00 Mon-Fri"));
+  cron.schedule("0 8 * * 1-5", runCheck);
 } else {
-  runCheck();
+  // Run once immediately
+  await runCheck();
 }

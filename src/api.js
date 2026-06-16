@@ -1,87 +1,201 @@
-// api.js — Contracts Finder OCDS API client
-// Handles pagination, rate-limiting, and error recovery
-
+// api.js — fetches OCDS releases from Contracts Finder, Find a Tender,
+//           Public Contracts Scotland, and Sell2Wales
 import { config } from "./config.js";
+import { subDays, formatISO, format } from "date-fns";
 
-const BASE = `${config.baseUrl}/Published/Notices/OCDS/Search`;
-
-/**
- * Sleep for n milliseconds
- */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Fetch a single page of OCDS releases.
- * @param {object} params
- * @param {string} [params.publishedFrom]  ISO 8601
- * @param {string} [params.publishedTo]    ISO 8601
- * @param {string[]} [params.stages]       e.g. ["planning","tender"]
- * @param {string} [params.cursor]         pagination cursor
- * @param {number} [params.limit]
- * @returns {Promise<{releases: any[], nextCursor: string|null}>}
- */
-export async function fetchPage({ publishedFrom, publishedTo, stages, cursor, limit = config.pageSize } = {}) {
-  const url = new URL(BASE);
+// ── Contracts Finder ──────────────────────────────────────────────────────────
+// Cursor-based pagination; params: publishedFrom, stages, size
+async function* fetchContractsFinder({ days, stages }) {
+  const src = config.sources.contractsFinder;
+  const publishedFrom = formatISO(subDays(new Date(), days), {
+    representation: "complete",
+  }).slice(0, 19);
 
-  if (publishedFrom) url.searchParams.set("publishedFrom", publishedFrom);
-  if (publishedTo)   url.searchParams.set("publishedTo",   publishedTo);
-  if (stages?.length) url.searchParams.set("stages", stages.join(","));
-  if (cursor)        url.searchParams.set("cursor", cursor);
-  url.searchParams.set("limit", String(limit));
+  const stageParam = stages.join(",");
+  let cursor = null;
+  let page = 0;
 
-  const res = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-  });
+  while (true) {
+    const params = new URLSearchParams({
+      publishedFrom,
+      stages: stageParam,
+      size: "100",
+    });
+    if (cursor) params.set("cursor", cursor);
 
-  if (res.status === 403) {
-    throw new Error("Rate limit hit — wait 5 minutes before retrying.");
-  }
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} from Contracts Finder API`);
-  }
+    const url = `${src.baseUrl}${src.searchPath}?${params}`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
 
-  const body = await res.json();
-
-  // Pagination cursor is in body.links.next (not body.uri)
-  let nextCursor = null;
-  if (body.links?.next) {
-    try {
-      const u = new URL(body.links.next);
-      nextCursor = u.searchParams.get("cursor") || null;
-    } catch (_) {
-      // ignore
+    if (!res.ok) {
+      if (res.status === 429) {
+        const retry = parseInt(res.headers.get("Retry-After") || "10", 10);
+        console.warn(`[CF] Rate limited — waiting ${retry}s`);
+        await sleep(retry * 1000);
+        continue;
+      }
+      throw new Error(`[CF] HTTP ${res.status} on page ${page}`);
     }
-  }
 
-  return {
-    releases: body.releases ?? [],
-    nextCursor,
-  };
+    const data = await res.json();
+    const releases = data.releases ?? data.releasePackage?.releases ?? [];
+
+    if (releases.length === 0) break;
+    page++;
+    for (const r of releases) yield { release: r, source: src.label };
+
+    cursor = data.cursor ?? data.nextCursor ?? null;
+    if (!cursor) break;
+    await sleep(config.rateLimit);
+  }
 }
 
-/**
- * Fetch ALL pages for a given date/stage query, respecting rate limits.
- * Yields batches of releases as they arrive.
- *
- * @param {object} params  Same as fetchPage, minus cursor
- * @param {(n: number) => void} [onPage]  Called with running release count after each page
- */
-export async function* fetchAll(params, onPage) {
+// ── Find a Tender ─────────────────────────────────────────────────────────────
+// Cursor-based pagination; params: updatedFrom, stages, limit
+async function* fetchFindATender({ days, stages }) {
+  const src = config.sources.findATender;
+  const updatedFrom = formatISO(subDays(new Date(), days), {
+    representation: "complete",
+  }).slice(0, 19);
+
+  const stageParam = stages.join(",");
   let cursor = null;
-  let totalFetched = 0;
-  let pageNum = 0;
+  let page = 0;
 
-  do {
-    if (pageNum > 0) await sleep(config.rateLimit);
+  while (true) {
+    const params = new URLSearchParams({
+      updatedFrom,
+      stages: stageParam,
+      limit: "100",
+    });
+    if (cursor) params.set("cursor", cursor);
 
-    const { releases, nextCursor } = await fetchPage({ ...params, cursor });
-    totalFetched += releases.length;
-    pageNum++;
+    const url = `${src.baseUrl}${src.searchPath}?${params}`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
 
-    if (onPage) onPage(totalFetched);
+    if (!res.ok) {
+      if (res.status === 429) {
+        const retry = parseInt(res.headers.get("Retry-After") || "10", 10);
+        console.warn(`[FTS] Rate limited — waiting ${retry}s`);
+        await sleep(retry * 1000);
+        continue;
+      }
+      throw new Error(`[FTS] HTTP ${res.status} on page ${page}`);
+    }
 
-    yield releases;
+    const data = await res.json();
+    const releases = data.releases ?? [];
 
-    cursor = nextCursor;
-  } while (cursor);
+    if (releases.length === 0) break;
+    page++;
+    for (const r of releases) yield { release: r, source: src.label };
+
+    cursor = data.cursor ?? data.nextCursor ?? null;
+    if (!cursor) break;
+    await sleep(config.rateLimit);
+  }
+}
+
+// ── Month-based sources (PCS + Sell2Wales) ────────────────────────────────────
+// These APIs return all notices for a given month by noticeType.
+// stages map to: planning→1 (PIN), tender→2 (contract notice), award→3
+const STAGE_NOTICE_TYPE = { planning: 1, tender: 2, award: 3 };
+
+// Returns ["MM-YYYY", ...] for each month that overlaps the lookback window
+function monthRange(days) {
+  const now = new Date();
+  const cutoff = subDays(now, days);
+  const months = [];
+  let year = now.getFullYear();
+  let month = now.getMonth(); // 0-indexed
+
+  while (true) {
+    months.push(format(new Date(year, month, 1), "MM-yyyy"));
+    // Stop once we've included the month that contains the cutoff date
+    if (new Date(year, month, 1) <= cutoff) break;
+    month--;
+    if (month < 0) { month = 11; year--; }
+  }
+  return months;
+}
+
+async function* fetchMonthBased(src, { days, stages }) {
+  const cutoff = subDays(new Date(), days);
+
+  for (const month of monthRange(days)) {
+    for (const stage of stages) {
+      const noticeType = STAGE_NOTICE_TYPE[stage];
+      if (noticeType === undefined) continue;
+
+      const params = new URLSearchParams({
+        dateFrom: month,
+        noticeType: String(noticeType),
+        outputType: "0",
+      });
+      if (src.locale) params.set("locale", src.locale);
+
+      const url = `${src.baseUrl}${src.searchPath}?${params}`;
+
+      let res;
+      try {
+        res = await fetch(url, { headers: { Accept: "application/json" } });
+      } catch (err) {
+        console.warn(`[${src.label}] Network error: ${err.message}`);
+        continue;
+      }
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          const retry = parseInt(res.headers.get("Retry-After") || "10", 10);
+          console.warn(`[${src.label}] Rate limited — waiting ${retry}s`);
+          await sleep(retry * 1000);
+          continue;
+        }
+        console.warn(`[${src.label}] HTTP ${res.status} for ${stage}/${month} — skipping`);
+        continue;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        console.warn(`[${src.label}] Invalid response for ${stage}/${month} — skipping`);
+        continue;
+      }
+
+      const releases = data.releases ?? [];
+      for (const r of releases) {
+        if (r.date && new Date(r.date) < cutoff) continue;
+        yield { release: r, source: src.label };
+      }
+
+      await sleep(config.rateLimit);
+    }
+  }
+}
+
+// ── Combined generator ────────────────────────────────────────────────────────
+export async function* fetchAllNotices({ days, stages }) {
+  const { contractsFinder, findATender, sell2wales, publicContractsScotland } = config.sources;
+
+  if (contractsFinder.enabled) {
+    console.log(`\nFetching from ${contractsFinder.label}...`);
+    yield* fetchContractsFinder({ days, stages });
+  }
+
+  if (findATender.enabled) {
+    console.log(`\nFetching from ${findATender.label}...`);
+    yield* fetchFindATender({ days, stages });
+  }
+
+  if (sell2wales.enabled) {
+    console.log(`\nFetching from ${sell2wales.label}...`);
+    yield* fetchMonthBased(sell2wales, { days, stages });
+  }
+
+  if (publicContractsScotland.enabled) {
+    console.log(`\nFetching from ${publicContractsScotland.label}...`);
+    yield* fetchMonthBased(publicContractsScotland, { days, stages });
+  }
 }

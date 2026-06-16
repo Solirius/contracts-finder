@@ -1,12 +1,11 @@
 {
   "name": "contracts-finder-scraper",
-  "version": "1.0.0",
-  "description": "Solirius Data & AI Practice — GOV.UK Contracts Finder tender monitor",
+  "version": "2.0.0",
+  "description": "Solirius Data & AI Practice — GOV.UK Contracts Finder + Find a Tender monitor",
   "type": "module",
   "scripts": {
     "search": "node src/search.js",
     "monitor": "node src/monitor.js",
-    "export": "node src/export.js",
     "jira": "node src/push-to-jira.js",
     "schedule": "node src/schedule.js"
   },

@@ -1,7 +1,16 @@
-# Contracts Finder Tender Monitor
+# UK Public Sector Tender Monitor
 ### Solirius Data & AI Practice
 
-A Node.js tool that queries the **GOV.UK Contracts Finder API** to surface relevant tenders for the Solirius Data & AI team — scoring opportunities against past winning sectors (justice tech, education data, housing, AI/data, digital delivery) and automatically creating Jira tickets on the GTM board.
+A Node.js tool that queries **four UK government procurement portals** to surface relevant tenders for the Solirius Data & AI team — scoring opportunities against core sectors (housing tech, AI/data, digital delivery, consulting) and automatically creating Jira tickets on the GTM board.
+
+| Source | Coverage |
+|---|---|
+| [Contracts Finder](https://www.contractsfinder.service.gov.uk) | England + UK-wide (below-threshold) |
+| [Find a Tender](https://www.find-tender.service.gov.uk) | UK-wide (above-threshold / OJEU) |
+| [Public Contracts Scotland](https://www.publiccontractsscotland.gov.uk) | Scotland |
+| [Sell2Wales](https://www.sell2wales.gov.wales) | Wales |
+
+Each source can be toggled on/off individually in `src/config.js`.
 
 ---
 
@@ -10,7 +19,7 @@ A Node.js tool that queries the **GOV.UK Contracts Finder API** to surface relev
 ```bash
 npm install
 cp .env.example .env   # fill in your Jira credentials
-npm run search         # one-shot search to verify it's working
+npm run search         # one-shot search across all sources
 npm run jira           # push results to Jira
 ```
 
@@ -20,15 +29,17 @@ npm run jira           # push results to Jira
 
 | Command | What it does |
 |---|---|
-| `npm run search` | One-shot search, prints results to terminal |
+| `npm run search` | One-shot search across all enabled sources |
+| `npm run search -- --days 7` | Limit to last 7 days |
+| `npm run search -- --min-score 5` | High-relevance results only |
+| `npm run search -- --stages tender` | Live opportunities only |
 | `npm run jira` | Search and push new tenders to Jira GTM board |
 | `npm run jira -- --dry-run` | Preview what would be pushed without creating issues |
 | `npm run jira -- --days 7` | Limit search to last 7 days |
 | `npm run jira -- --min-score 5` | High-relevance results only |
-| `npm run jira -- --stages tender` | Live opportunities only |
 | `npm run schedule -- --now` | Run the daily Jira push immediately |
 | `npm run schedule` | Start daemon (runs daily at 10:00 UK time, weekdays) |
-| `npm run monitor` | Run once, track new tenders in `data/seen.json` |
+| `npm run monitor` | Run once, track new tenders in `output/.seen-notices.json` |
 
 ---
 
@@ -48,10 +59,11 @@ New tenders are created as **Tasks** on the [GTM board](https://stef-deligia.atl
 
 ### Each Jira ticket includes
 
+- Source portal (Contracts Finder, Find a Tender, PCS, Sell2Wales)
 - Buyer name, contract value, tender deadline
 - Relevance score and matched keywords
-- Stage (Future Opportunity / Live Opportunity)
-- Direct link to the Contracts Finder notice
+- Stage (planning / tender)
+- Direct link to the notice
 
 ### Priority mapping
 
@@ -104,22 +116,17 @@ launchctl load ~/Library/LaunchAgents/com.solirius.contracts-finder.plist
 
 ## How Scoring Works
 
-Each tender is scored against keyword groups drawn from Solirius's awarded contract history:
+Each tender is scored against keyword groups tuned for Solirius's core sectors:
 
 | Group | Points | Example keywords |
 |---|---|---|
-| **AI** | 5 | LLM, generative AI, Azure AI, machine learning |
-| **Data** | 5 | data platform, data science, ETL, learner data |
-| **Justice** | 4 | HMCTS, Ministry of Justice, CFT, courts reform |
-| **Target buyer** | 4 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, councils… |
-| **Education** | 3 | DfE, ESFA, learner record, skills funding |
-| **Delivery** | 3 | software engineering, managed service, G-Cloud, RM6263 |
-| **Housing** | 3 | housing association, STAIRS, RSH, social housing |
-| **Consulting** | 2 | digital transformation, cloud migration, Azure |
+| **Housing** | 5 | housing association, social housing, STAIRS, RSH, awaab |
+| **AI** | 4 | LLM, generative AI, Azure AI, machine learning, NLP |
+| **Data** | 3 | data platform, data science, ETL, Power BI, Databricks |
+| **Consulting** | 2 | digital transformation, advisory, delivery partner, M365 |
+| **Target buyer bonus** | +3 | housing association, registered provider, Homes England, MHCLG |
 
-Only `planning` (Future Opportunity / Early Market Engagement) and `tender` (Opportunity) stage notices are surfaced — amendments, awards and contract notices are excluded.
-
-Results with `score >= 3` are pushed to Jira. Use `--min-score 5` to raise the bar.
+A notice must reach `minScore` (default **5**) to be included. Raise it with `--min-score`.
 
 ---
 
@@ -127,11 +134,26 @@ Results with `score >= 3` are pushed to Jira. Use `--min-score 5` to raise the b
 
 Edit **`src/config.js`** to adjust:
 
-- Keyword groups and point values
-- `targetBuyers` list
-- `minValue` / `maxValue` thresholds (£)
-- `defaultLookbackDays`
-- `defaultStages`
+- Enable/disable individual sources (`sources.sell2wales.enabled`, etc.)
+- Keyword groups and point values (`keywords`)
+- Target buyer bonus terms (`targetBuyers`)
+- `minScore` — minimum relevance score to surface a result
+- `defaultDays` — default lookback window
+- `stages` — which notice stages to fetch (`"planning"`, `"tender"`, `"award"`)
+- `minValue` / `maxValue` — value filters in GBP (0 = disabled)
+
+> **Note:** The Sell2Wales API (`api-sell2wales.klickstream.com`) occasionally returns server errors outside of Solirius's control. The tool will warn and skip it gracefully rather than crashing — check `output/` for results from the other three sources.
+
+---
+
+## How Each Source Is Fetched
+
+| Source | Pagination | Notice type mapping |
+|---|---|---|
+| Contracts Finder | Cursor-based (`cursor` param) | `stages=planning,tender` |
+| Find a Tender | Cursor-based (`cursor` param) | `stages=planning,tender` |
+| Public Contracts Scotland | Month-based (`dateFrom=MM-YYYY`) | `noticeType=1` (planning), `2` (tender) |
+| Sell2Wales | Month-based (`dateFrom=MM-YYYY`) | `noticeType=1` (planning), `2` (tender) |
 
 ---
 
@@ -140,19 +162,19 @@ Edit **`src/config.js`** to adjust:
 ```
 contracts-finder/
 ├── src/
-│   ├── config.js      # Keywords, filters, thresholds — edit this
-│   ├── api.js         # Contracts Finder OCDS API client
-│   ├── filter.js      # Keyword scoring and relevance filtering
-│   ├── export.js      # CSV + JSON output
-│   ├── search.js      # CLI: one-shot search
-│   ├── monitor.js     # CLI: scheduled CSV monitor (no Jira)
-│   ├── push-to-jira.js # CLI: manual Jira push with flags
-│   ├── schedule.js    # Daily Jira push daemon (10am UK)
-│   └── jira.js        # Jira REST API client
+│   ├── config.js          # Sources, keywords, thresholds — edit this
+│   ├── api.js             # Multi-source OCDS fetchers
+│   ├── filter.js          # Keyword scoring engine
+│   ├── export.js          # CSV + JSON output
+│   ├── search.js          # CLI: one-shot search
+│   ├── monitor.js         # CLI: scheduled CSV monitor (no Jira)
+│   ├── push-to-jira.js    # CLI: manual Jira push with flags
+│   ├── schedule.js        # Daily Jira push daemon (10am UK)
+│   └── jira.js            # Jira REST API client
 ├── com.solirius.contracts-finder.plist  # macOS launchd config
-├── output/            # CSVs, JSON, schedule.log (gitignored)
-├── data/              # jira-pushed.json dedup cache (gitignored)
-├── .env.example       # Credential template
+├── output/                # CSVs, JSON, .seen-notices.json (gitignored)
+├── data/                  # jira-pushed.json dedup cache (gitignored)
+├── .env.example           # Credential template
 ├── package.json
 └── README.md
 ```

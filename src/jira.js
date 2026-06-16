@@ -5,10 +5,8 @@
 //                   JIRA_PROJECT (default: KAN)
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
-import { config } from "./config.js";
 
-const CACHE_PATH = join(config.dataDir, "jira-pushed.json");
+const CACHE_PATH = "./data/jira-pushed.json";
 
 // Read lazily so .env loaded by the caller is visible
 function jiraEnv() {
@@ -44,7 +42,7 @@ function buildDescription(tender) {
     ["Stage",    tender.stage],
     ...(tender.value    ? [["Value",    `£${tender.value.toLocaleString()}`]] : []),
     ...(tender.deadline ? [["Deadline", tender.deadline.slice(0, 10)]]       : []),
-    ["Score",    `${tender.score} — ${tender.matchedKeywords.join(", ")}`],
+    ["Score",    `${tender.score} — ${tender.matched.join(", ")}`],
   ];
 
   const bulletItems = rows.map(([label, val]) => ({
@@ -91,7 +89,7 @@ export function buildJiraFields(tender) {
   const labels = [
     "contracts-finder",
     safeLabel(tender.stage),
-    ...tender.matchedKeywords.slice(0, 5).map(safeLabel),
+    ...tender.matched.slice(0, 5).map(safeLabel),
   ].filter(Boolean);
 
   const fields = {
@@ -157,6 +155,6 @@ export function loadPushedCache() {
 }
 
 export function savePushedCache(cache) {
-  mkdirSync(config.dataDir, { recursive: true });
+  mkdirSync("./data", { recursive: true });
   writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 2), "utf8");
 }

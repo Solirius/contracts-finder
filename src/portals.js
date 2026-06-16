@@ -8,6 +8,22 @@ function parseDeadline(str) {
   return `${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:00Z`;
 }
 
+// Content-based row parser — works across portal variants with 7 or 8 columns
+function parseIttRow(cells) {
+  const ittCode = cells.find(c => /^itt_/.test(c));
+  if (!ittCode) return null;
+  const ittIdx = cells.indexOf(ittCode);
+  const title = cells[ittIdx + 1] ?? '';
+  const projectCode = cells.find(c => /^project_/.test(c)) ?? '';
+  const deadline = cells.find(c => /^\d{2}\/\d{2}\/\d{4}/.test(c)) ?? '';
+  const STATUS_PREFIXES = ['Running', 'Closed', 'Pending', 'Suspended', 'Cancelled', 'Completed', 'Draft'];
+  const status = cells.find(c => STATUS_PREFIXES.some(s => c.startsWith(s))) ?? '';
+  const RESPONSE_PREFIXES = ['Response Not Submitted', 'Response Submitted', 'Invited', 'Declined', 'Qualified'];
+  const responseStatus = cells.find(c => RESPONSE_PREFIXES.some(s => c.startsWith(s))) ?? '';
+  const buyer = cells[cells.length - 1] ?? '';
+  return { ittCode, title, projectCode, deadline, status, responseStatus, buyer };
+}
+
 function ittToRelease(itt, baseUrl) {
   return {
     ocid: itt.ittCode,
@@ -22,15 +38,17 @@ function ittToRelease(itt, baseUrl) {
       status:      'active',
       tenderPeriod: { endDate: parseDeadline(itt.deadline) },
     },
-    parties: [{ name: itt.buyer || 'Government Commercial Agency', roles: ['buyer'] }],
+    parties: [{ name: itt.buyer || 'Unknown', roles: ['buyer'] }],
     buyer:   { name: itt.buyer },
   };
 }
 
 // ── BravoSolution / JAGGAER ───────────────────────────────────────────────────
+// Works for all *.bravosolution.co.uk and *.jaggaer.com supplier portals that
+// share the same /web/login.html + joinRfq/list.si structure.
 export async function* fetchBravoSolution(src) {
-  const user = process.env.BRAVO_USER ?? '';
-  const pass = process.env.BRAVO_PASS ?? '';
+  const user = process.env[src.userEnv ?? 'BRAVO_USER'] ?? '';
+  const pass = process.env[src.passEnv ?? 'BRAVO_PASS'] ?? '';
   if (!src.enabled || !user || !pass) return;
 
   const browser = await chromium.launch({ headless: true, args: ['--window-size=1280,900'] });
@@ -44,51 +62,44 @@ export async function* fetchBravoSolution(src) {
     await page.fill('input[name="password"]', pass);
     await Promise.all([
       page.waitForURL('**/dashboard**', { timeout: 20000 }).catch(() => {}),
-      page.click('input[name="submit"]'),
+      // Some portals use name="submit", others have no name on the submit button
+      page.click('input[type="submit"]'),
     ]);
     await page.waitForLoadState('networkidle');
 
-    // Navigate to My ITTs via JS click (bypasses CSRF + viewport constraints)
+    // Navigate to My ITTs — try joinRfq link first, then /rfq/my fallback
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }).catch(() => {}),
       page.evaluate(() => {
-        const l = [...document.querySelectorAll('a')].find(a => a.href.includes('joinRfq'));
-        if (l) l.click();
+        const byJoinRfq = [...document.querySelectorAll('a')].find(a => a.href.includes('joinRfq'));
+        if (byJoinRfq) { byJoinRfq.click(); return; }
+        const byRfqMy = [...document.querySelectorAll('a')].find(a => a.href.includes('/rfq/my'));
+        if (byRfqMy) byRfqMy.click();
       }),
     ]);
     await page.waitForTimeout(2000);
 
-    // Paginate — list is ordered newest-first so stop when no running ITTs visible
+    // Paginate through ITT list
     for (let pg = 0; pg < 10; pg++) {
-      const itts = await page.$$eval('table tr', rows =>
-        rows
-          .map(r => {
-            const cells = [...r.querySelectorAll('td')].map(td =>
-              td.textContent.replace(/\s+/g, ' ').trim()
-            );
-            // Row structure (no row-number <td>): ittCode|title|projectCode|timeToClose|deadline|status|responseStatus|buyer
-            if (cells.length < 7 || !cells[0]?.startsWith('itt_')) return null;
-            return {
-              ittCode:        cells[0],
-              title:          cells[1],
-              projectCode:    cells[2],
-              deadline:       cells[4],
-              status:         cells[5],
-              responseStatus: cells[6],
-              buyer:          cells[7] ?? '',
-            };
-          })
-          .filter(Boolean)
+      const rows = await page.$$eval('table tr', trs =>
+        trs.map(r =>
+          [...r.querySelectorAll('td')].map(td => td.textContent.replace(/\s+/g, ' ').trim())
+        )
       );
 
+      const itts = rows.map(parseIttRow).filter(Boolean);
+      let foundRunning = false;
+
       for (const itt of itts) {
-        if (itt.status === 'Running' && itt.responseStatus === 'Response Not Submitted To Buyer') {
+        if (itt.status === 'Running' && itt.responseStatus.startsWith('Response Not Submitted')) {
+          foundRunning = true;
           yield { release: ittToRelease(itt, src.baseUrl), source: src.label };
+        } else if (itt.status === 'Running') {
+          foundRunning = true;
         }
       }
 
-      // No running ITTs on this page → done
-      if (!itts.some(i => i.status === 'Running')) break;
+      if (!foundRunning) break;
 
       const nextLink = await page.$('a[title="Next Page"]');
       if (!nextLink) break;

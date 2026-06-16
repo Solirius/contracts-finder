@@ -29,11 +29,24 @@ export const config = {
       searchPath: "/v1/Notices",
       label: "Public Contracts Scotland",
     },
-    bravoSolution: {
-      enabled: true,
-      baseUrl: "https://crowncommercialservice.bravosolution.co.uk",
-      label: "BravoSolution (GCA)",
-    },
+    // Authenticated portal scrapers (BravoSolution / JAGGAER family)
+    // Credentials come from env vars named in userEnv / passEnv.
+    bravoSolutions: [
+      {
+        enabled: true,
+        baseUrl: "https://crowncommercialservice.bravosolution.co.uk",
+        label: "BravoSolution (GCA)",
+        userEnv: "BRAVO_USER",
+        passEnv: "BRAVO_PASS",
+      },
+      {
+        enabled: true,
+        baseUrl: "https://homeoffice.app.jaggaer.com",
+        label: "JAGGAER (Home Office)",
+        userEnv: "BRAVO_USER",
+        passEnv: "BRAVO_PASS",
+      },
+    ],
   },
 
   // ── Rate limiting ─────────────────────────────────────────────────────────

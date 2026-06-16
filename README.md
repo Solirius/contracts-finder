@@ -108,14 +108,14 @@ Each tender is scored against keyword groups drawn from Solirius's awarded contr
 
 | Group | Points | Example keywords |
 |---|---|---|
-| **Housing** | 5 | housing association, STAIRS, RSH, social housing |
-| **AI** | 4 | LLM, generative AI, Azure AI, machine learning |
+| **AI** | 5 | LLM, generative AI, Azure AI, machine learning |
+| **Data** | 5 | data platform, data science, ETL, learner data |
 | **Justice** | 4 | HMCTS, Ministry of Justice, CFT, courts reform |
-| **Data** | 3 | data platform, data science, ETL, learner data |
+| **Target buyer** | +4 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, councils… |
 | **Education** | 3 | DfE, ESFA, learner record, skills funding |
 | **Delivery** | 3 | software engineering, managed service, G-Cloud, RM6263 |
+| **Housing** | 3 | housing association, STAIRS, RSH, social housing |
 | **Consulting** | 2 | digital transformation, cloud migration, Azure |
-| **Target buyer** | +3 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, councils… |
 
 Only `planning` (Future Opportunity / Early Market Engagement) and `tender` (Opportunity) stage notices are surfaced — amendments, awards and contract notices are excluded.
 

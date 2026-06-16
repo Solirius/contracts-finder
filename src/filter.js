@@ -24,10 +24,10 @@ function buildGroup(name, kws, points) {
 }
 
 const GROUPS = [
-  buildGroup("housing",    keywords.housing,    5),
-  buildGroup("ai",         keywords.ai,         4),
+  buildGroup("housing",    keywords.housing,    3),
+  buildGroup("ai",         keywords.ai,         5),
   buildGroup("justice",    keywords.justice,    4),
-  buildGroup("data",       keywords.data,       3),
+  buildGroup("data",       keywords.data,       5),
   buildGroup("education",  keywords.education,  3),
   buildGroup("delivery",   keywords.delivery,   3),
   buildGroup("health",     keywords.health,     3),
@@ -89,7 +89,7 @@ export function scoreRelease(release) {
   const buyerName = release.buyer?.name ?? "";
   for (const re of BUYER_RES) {
     if (re.test(buyerName)) {
-      score += 3;
+      score += 4;
       break;
     }
   }

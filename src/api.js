@@ -1,7 +1,8 @@
 // api.js — fetches OCDS releases from Contracts Finder, Find a Tender,
-//           Public Contracts Scotland, and Sell2Wales
+//           Public Contracts Scotland, Sell2Wales, and BravoSolution (GCA)
 import { config } from "./config.js";
 import { subDays, formatISO, format } from "date-fns";
+import { fetchBravoSolution } from "./portals.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -177,7 +178,7 @@ async function* fetchMonthBased(src, { days, stages }) {
 
 // ── Combined generator ────────────────────────────────────────────────────────
 export async function* fetchAllNotices({ days, stages }) {
-  const { contractsFinder, findATender, sell2wales, publicContractsScotland } = config.sources;
+  const { contractsFinder, findATender, sell2wales, publicContractsScotland, bravoSolution } = config.sources;
 
   if (contractsFinder.enabled) {
     console.log(`\nFetching from ${contractsFinder.label}...`);
@@ -197,5 +198,10 @@ export async function* fetchAllNotices({ days, stages }) {
   if (publicContractsScotland.enabled) {
     console.log(`\nFetching from ${publicContractsScotland.label}...`);
     yield* fetchMonthBased(publicContractsScotland, { days, stages });
+  }
+
+  if (bravoSolution.enabled) {
+    console.log(`\nFetching from ${bravoSolution.label}...`);
+    yield* fetchBravoSolution(bravoSolution);
   }
 }

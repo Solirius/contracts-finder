@@ -64,6 +64,6 @@ export function extractFields(release, source) {
     valueAmount: value,
     published: release.date ?? "",
     deadline,
-    url: `https://www.contractsfinder.service.gov.uk/Notice/${release.id}`,
+    url: release._url ?? `https://www.contractsfinder.service.gov.uk/Notice/${release.id}`,
   };
 }

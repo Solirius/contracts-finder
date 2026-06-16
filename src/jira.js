@@ -71,7 +71,7 @@ function buildDescription(tender) {
     type: "paragraph",
     content: [{
       type: "text",
-      text: "View on Contracts Finder →",
+      text: "View opportunity →",
       marks: [{ type: "link", attrs: { href: tender.url } }],
     }],
   });

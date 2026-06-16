@@ -29,6 +29,11 @@ export const config = {
       searchPath: "/v1/Notices",
       label: "Public Contracts Scotland",
     },
+    bravoSolution: {
+      enabled: true,
+      baseUrl: "https://crowncommercialservice.bravosolution.co.uk",
+      label: "BravoSolution (GCA)",
+    },
   },
 
   // ── Rate limiting ─────────────────────────────────────────────────────────

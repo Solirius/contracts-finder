@@ -205,7 +205,7 @@ function extractFields(release, source) {
     valueAmount:   value,
     published:     release.date || "",
     deadline:      deadline,
-    url:           "https://www.contractsfinder.service.gov.uk/Notice/" + (release.id || ""),
+    url:           release._url || "https://www.contractsfinder.service.gov.uk/Notice/" + (release.id || ""),
   };
 }
 
@@ -445,7 +445,7 @@ function buildDescription(tender) {
 
   content.push({ type: "paragraph", content: [{
     type: "text",
-    text: "View on Contracts Finder →",
+    text: "View opportunity →",
     marks: [{ type: "link", attrs: { href: tender.url } }],
   }]});
 

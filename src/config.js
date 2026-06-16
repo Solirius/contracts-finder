@@ -46,6 +46,20 @@ export const config = {
         userEnv: "BRAVO_USER",
         passEnv: "BRAVO_PASS",
       },
+      {
+        enabled: true,
+        baseUrl: "https://education.app.jaggaer.com",
+        label: "JAGGAER (DfE)",
+        userEnv: "BRAVO_USER",
+        passEnv: "BRAVO_DFE_PASS",
+      },
+      {
+        enabled: true,
+        baseUrl: "https://uktrade.app.jaggaer.com",
+        label: "JAGGAER (DIT/DBT)",
+        userEnv: "BRAVO_USER",
+        passEnv: "BRAVO_DIT_PASS",
+      },
     ],
   },
 

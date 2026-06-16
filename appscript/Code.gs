@@ -114,10 +114,9 @@ var CONFIG = {
     housing: {
       score: 3,
       terms: [
-        "housing association", "registered provider", "social housing",
-        "STAIRS", "HHSRS", "awaab", "housing ombudsman", "RSH",
-        "affordable housing", "MHCLG", "HACT", "NHF",
-        "right to repair", "damp and mould", "building safety",
+        "STAIRS", "HHSRS", "housing ombudsman", "RSH",
+        "HACT", "NHF", "awaab",
+        "housing management system", "housing data", "housing digital",
       ],
     },
     consulting: {

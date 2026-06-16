@@ -147,7 +147,7 @@ Each tender is scored against keyword groups tuned for Solirius's core sectors. 
 | **DevOps** | +3 | DevOps, SRE, infrastructure as code, Kubernetes, CI/CD, platform engineering |
 | **Dynamic Languages** | +3 | Python, JavaScript, TypeScript, Node.js, Ruby, .NET, React, Angular |
 | **Business Design** | +3 | business analysis, service design, user research, UX, operating model, business change |
-| **Housing** | +3 | housing association, social housing, STAIRS, RSH, awaab, damp and mould, building safety |
+| **Housing** | +3 | STAIRS, HHSRS, housing ombudsman, RSH, HACT, NHF, awaab, housing management system |
 | **Consulting** | +2 | digital transformation, advisory, consultancy, technology strategy, cloud migration, M365 |
 | **Target buyer bonus** | +4 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, housing associations, MHCLG, Homes England |
 

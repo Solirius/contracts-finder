@@ -111,7 +111,7 @@ Each tender is scored against keyword groups drawn from Solirius's awarded contr
 | **AI** | 5 | LLM, generative AI, Azure AI, machine learning |
 | **Data** | 5 | data platform, data science, ETL, learner data |
 | **Justice** | 4 | HMCTS, Ministry of Justice, CFT, courts reform |
-| **Target buyer** | +4 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, councils… |
+| **Target buyer** | 4 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, councils… |
 | **Education** | 3 | DfE, ESFA, learner record, skills funding |
 | **Delivery** | 3 | software engineering, managed service, G-Cloud, RM6263 |
 | **Housing** | 3 | housing association, STAIRS, RSH, social housing |

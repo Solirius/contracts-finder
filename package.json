@@ -4,10 +4,10 @@
   "description": "Solirius Data & AI Practice — GOV.UK Contracts Finder + Find a Tender monitor",
   "type": "module",
   "scripts": {
-    "search": "node src/search.js",
-    "monitor": "node src/monitor.js",
-    "jira": "node src/push-to-jira.js",
-    "schedule": "node src/schedule.js"
+    "search": "NODE_EXTRA_CA_CERTS=./sectigo-intermediate.pem node src/search.js",
+    "monitor": "NODE_EXTRA_CA_CERTS=./sectigo-intermediate.pem node src/monitor.js",
+    "jira": "NODE_EXTRA_CA_CERTS=./sectigo-intermediate.pem node src/push-to-jira.js",
+    "schedule": "NODE_EXTRA_CA_CERTS=./sectigo-intermediate.pem node src/schedule.js"
   },
   "dependencies": {
     "chalk": "^5.3.0",

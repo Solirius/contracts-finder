@@ -34,6 +34,8 @@
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>NODE_EXTRA_CA_CERTS</key>
+        <string>/Users/stefania.deligia/Documents/Data Practice/contracts-finder/sectigo-intermediate.pem</string>
     </dict>
 </dict>
 </plist>

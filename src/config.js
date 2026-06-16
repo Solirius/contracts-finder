@@ -77,6 +77,7 @@ export const config = {
         "business intelligence", "BI", "ETL", "data pipeline",
         "data architecture", "data mesh", "Power BI", "Fabric",
         "Databricks", "Snowflake", "Azure", "cloud data",
+        "data & ai",
       ],
     },
     consulting: {

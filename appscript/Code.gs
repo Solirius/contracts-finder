@@ -76,6 +76,7 @@ var CONFIG = {
         "business intelligence", "BI", "ETL", "data pipeline",
         "data architecture", "data mesh", "Power BI", "Fabric",
         "Databricks", "Snowflake", "Azure", "cloud data",
+        "data & ai",
       ],
     },
     consulting: {
@@ -97,6 +98,9 @@ var CONFIG = {
       "DLUHC", "Regulator of Social Housing",
     ],
   },
+
+  minValue: 0,  // GBP (0 = no lower limit)
+  maxValue: 0,  // GBP (0 = no upper limit)
 };
 
 // ── Date helpers (replaces date-fns) ──────────────────────────────────────────

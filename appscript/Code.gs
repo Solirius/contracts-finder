@@ -232,6 +232,10 @@ function noticeUrl(release, source) {
   if (source === "Find a Tender") {
     return "https://www.find-tender.service.gov.uk/Notice/" + (release.id || "");
   }
+  if (source === "Public Contracts Scotland") {
+    var pcsId = (release.id || "").replace(/^rls-\d+-/, "");
+    return "https://www.publiccontractsscotland.gov.uk/search/show/search_view.aspx?ID=" + pcsId;
+  }
   return "https://www.contractsfinder.service.gov.uk/Notice/" + (release.id || "").replace(/-\d+$/, "");
 }
 

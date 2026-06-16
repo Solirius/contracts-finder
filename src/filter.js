@@ -59,6 +59,12 @@ function noticeUrl(release, source) {
     return `https://www.find-tender.service.gov.uk/Notice/${release.id}`;
   }
 
+  // Public Contracts Scotland: release.id is "rls-N-JUNNNNNNN" — extract the JUN ID
+  if (source === "Public Contracts Scotland") {
+    const pcsId = (release.id ?? "").replace(/^rls-\d+-/, "");
+    return `https://www.publiccontractsscotland.gov.uk/search/show/search_view.aspx?ID=${pcsId}`;
+  }
+
   // Contracts Finder: release.id has a trailing numeric suffix (e.g. "-902381")
   // that is not part of the notice URL
   return `https://www.contractsfinder.service.gov.uk/Notice/${release.id.replace(/-\d+$/, "")}`;

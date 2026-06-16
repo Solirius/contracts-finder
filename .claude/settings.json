@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd=$(jq -r '.tool_input.command'); echo \"$cmd\" | grep -q 'git push' && cd \"/Users/stefania.deligia/Documents/Data Practice/contracts-finder\" && clasp push 2>&1 || true",
+            "statusMessage": "Syncing to Apps Script via clasp..."
+          }
+        ]
+      }
+    ]
+  }
+}

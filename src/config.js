@@ -79,19 +79,10 @@ export const config = {
   stages: ["planning", "tender"],
 
   // ── Keyword scoring groups ────────────────────────────────────────────────
+  // One match per group per tender — repeated keywords don't stack.
   keywords: {
-    housing: {
-      score: 5,
-      terms: [
-        "housing association", "registered provider", "social housing",
-        "STAIRS", "HHSRS", "awaab", "housing ombudsman", "RSH",
-        "affordable housing", "MHCLG", "HACT", "NHF",
-        "local authority housing", "council housing", "housing benefit",
-        "right to repair", "damp and mould", "building safety",
-      ],
-    },
     ai: {
-      score: 4,
+      score: 5,
       terms: [
         "artificial intelligence", "machine learning", "large language model",
         "LLM", "generative AI", "Azure AI", "Copilot", "ChatGPT",
@@ -102,34 +93,86 @@ export const config = {
       ],
     },
     data: {
-      score: 3,
+      score: 5,
       terms: [
         "data platform", "data strategy", "data governance", "data engineering",
         "data science", "data analytics", "data warehouse", "data lake",
         "business intelligence", "BI", "ETL", "data pipeline",
         "data architecture", "data mesh", "Power BI", "Fabric",
-        "Databricks", "Snowflake", "Azure", "cloud data",
-        "data & ai",
+        "Databricks", "Snowflake", "cloud data", "data & ai",
+      ],
+    },
+    delivery: {
+      score: 4,
+      terms: [
+        "agile delivery", "delivery manager", "product delivery",
+        "software delivery", "digital delivery", "programme delivery",
+        "managed service", "G-Cloud", "technology delivery",
+        "Scrum", "SAFe", "delivery partner",
+      ],
+    },
+    softwareEngineering: {
+      score: 3,
+      terms: [
+        "software engineering", "software development", "application development",
+        "full stack", "full-stack", "web development", "API development",
+        "microservices", "backend development", "frontend development",
+        "software architect", "technical architect",
+      ],
+    },
+    devops: {
+      score: 3,
+      terms: [
+        "DevOps", "site reliability", "SRE", "infrastructure as code",
+        "Kubernetes", "Docker", "containerisation", "CI/CD",
+        "cloud engineering", "platform engineering", "cloud infrastructure",
+      ],
+    },
+    dynamicLanguages: {
+      score: 3,
+      terms: [
+        "Python", "JavaScript", "TypeScript", "Node.js",
+        "Ruby", "Kotlin", "Swift", ".NET", "C#",
+        "React", "Vue", "Angular",
+      ],
+    },
+    businessDesign: {
+      score: 3,
+      terms: [
+        "business analysis", "business analyst", "service design",
+        "user research", "user experience", "UX", "business change",
+        "operating model", "organisational design", "process design",
+        "transformation design", "business architecture",
+      ],
+    },
+    housing: {
+      score: 3,
+      terms: [
+        "housing association", "registered provider", "social housing",
+        "STAIRS", "HHSRS", "awaab", "housing ombudsman", "RSH",
+        "affordable housing", "MHCLG", "HACT", "NHF",
+        "right to repair", "damp and mould", "building safety",
       ],
     },
     consulting: {
       score: 2,
       terms: [
         "digital transformation", "technology consulting", "advisory",
-        "consultancy", "programme management", "delivery partner",
-        "technology strategy", "innovation", "cloud migration",
-        "IT strategy", "Microsoft partner", "M365",
+        "consultancy", "technology strategy", "innovation",
+        "cloud migration", "IT strategy", "Microsoft partner", "M365",
       ],
     },
   },
 
-  // ── Bonus for specific buyer types ───────────────────────────────────────
+  // ── Bonus for high-value buyer organisations ──────────────────────────────
   targetBuyers: {
-    score: 3,
+    score: 4,
     terms: [
+      "Ministry of Justice", "MoJ", "HMCTS",
+      "Home Office", "Department for Education", "DfE",
+      "FCDO", "Ofgem",
       "housing association", "registered provider",
-      "MHCLG", "Department for Levelling Up", "Homes England",
-      "DLUHC", "Regulator of Social Housing",
+      "MHCLG", "Homes England", "DLUHC",
     ],
   },
 

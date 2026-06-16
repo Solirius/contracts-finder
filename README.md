@@ -140,11 +140,16 @@ Each tender is scored against keyword groups tuned for Solirius's core sectors. 
 
 | Group | Points | Example keywords |
 |---|---|---|
-| **Housing** | +5 | housing association, social housing, registered provider, STAIRS, HHSRS, awaab, RSH, damp and mould, building safety |
-| **AI** | +4 | artificial intelligence, LLM, generative AI, Azure AI, Copilot, NLP, AI foundry, ai engineering, data & ai |
-| **Data** | +3 | data platform, data strategy, data engineering, ETL, Power BI, Fabric, Databricks, Snowflake, data & ai |
-| **Consulting** | +2 | digital transformation, advisory, consultancy, delivery partner, cloud migration, Microsoft partner, M365 |
-| **Target buyer bonus** | +3 | housing association, registered provider, Homes England, MHCLG, DLUHC |
+| **AI** | +5 | artificial intelligence, LLM, generative AI, Azure AI, Copilot, NLP, AI foundry, ai engineering, data & ai |
+| **Data** | +5 | data platform, data strategy, data engineering, ETL, Power BI, Fabric, Databricks, Snowflake, data & ai |
+| **Delivery** | +4 | agile delivery, delivery manager, software delivery, G-Cloud, Scrum, SAFe |
+| **Software Engineering** | +3 | software engineering, application development, full stack, microservices, API development |
+| **DevOps** | +3 | DevOps, SRE, infrastructure as code, Kubernetes, CI/CD, platform engineering |
+| **Dynamic Languages** | +3 | Python, JavaScript, TypeScript, Node.js, Ruby, .NET, React, Angular |
+| **Business Design** | +3 | business analysis, service design, user research, UX, operating model, business change |
+| **Housing** | +3 | housing association, social housing, STAIRS, RSH, awaab, damp and mould, building safety |
+| **Consulting** | +2 | digital transformation, advisory, consultancy, technology strategy, cloud migration, M365 |
+| **Target buyer bonus** | +4 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, housing associations, MHCLG, Homes England |
 
 A notice must reach `minScore` (default **5**) to be included. Raise it with `--min-score`.
 

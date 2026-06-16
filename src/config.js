@@ -66,6 +66,7 @@ export const config = {
         "AI strategy", "AI implementation", "AI advisory", "AI solution",
         "AI platform", "cognitive services", "natural language processing",
         "NLP", "computer vision", "AI foundry",
+        "ai engineering", "data & ai",
       ],
     },
     data: {

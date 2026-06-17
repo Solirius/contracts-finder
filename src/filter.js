@@ -20,6 +20,13 @@ function buyerOf(release) {
 export function scoreRelease(release) {
   const text = textOf(release);
   const buyer = buyerOf(release);
+
+  for (const term of config.exclusions) {
+    if (text.includes(term.toLowerCase())) {
+      return { score: 0, matched: [`[excluded] ${term}`] };
+    }
+  }
+
   let score = 0;
   const matched = [];
 

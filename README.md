@@ -83,8 +83,9 @@ New tenders are created as **Tasks** on the [GTM board](https://stef-deligia.atl
 |---|---|
 | ★12+ | Highest |
 | ★8–11 | High |
-| ★5–7 | Medium |
-| ★3–4 | Low |
+| ★7 | Medium |
+
+With `minScore` set to 7, only Medium and above reach Jira.
 
 ### Deduplication
 
@@ -111,7 +112,14 @@ Generate a Jira token at: https://id.atlassian.com/manage-profile/security/api-t
 
 ## Daily Schedule
 
-The tool runs automatically every weekday at **10:00 UK time** via macOS launchd.
+| Schedule | Time | Sources covered | How it runs |
+|---|---|---|---|
+| **Google Apps Script** (primary) | 08:00 UK time, every day | 4 open OCDS sources | Google's cloud — no Mac required |
+| **macOS launchd** (secondary) | 10:00 UK time, weekdays only | All 8 sources (OCDS + authenticated portals) | Requires the Mac to be on |
+
+The Apps Script trigger is installed by running `setupTrigger()` once in the Apps Script editor (see [Google Apps Script Integration](#google-apps-script-integration) above).
+
+### macOS launchd
 
 ```bash
 # Check it's installed
@@ -138,22 +146,51 @@ launchctl load ~/Library/LaunchAgents/com.solirius.contracts-finder.plist
 
 Each tender is scored against keyword groups tuned for Solirius's core sectors. **One match per group per tender** — repeated keywords don't stack.
 
+### Tier 1 — core Data & AI practice (+5)
+
 | Group | Points | Example keywords |
 |---|---|---|
-| **AI** | +5 | artificial intelligence, LLM, generative AI, Azure AI, Copilot, NLP, AI foundry, ai engineering, data & ai |
-| **Data** | +5 | data platform, data strategy, data engineering, ETL, Power BI, Fabric, Databricks, Snowflake, data & ai |
-| **Delivery** | +4 | agile delivery, delivery manager, software delivery, G-Cloud, Scrum, SAFe |
-| **Software Engineering** | +3 | software engineering, application development, full stack, microservices, API development |
-| **DevOps** | +3 | DevOps, SRE, infrastructure as code, Kubernetes, CI/CD, platform engineering |
-| **Dynamic Languages** | +3 | Python, JavaScript, TypeScript, Node.js, Ruby, .NET, React, Angular |
-| **Business Design** | +3 | business analysis, service design, user research, UX, operating model, business change |
-| **Housing** | +3 | STAIRS, HHSRS, housing ombudsman, RSH, HACT, NHF, awaab, housing management system |
-| **Consulting** | +2 | digital transformation, advisory, consultancy, technology strategy, cloud migration, M365 |
-| **Target buyer bonus** | +4 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, housing associations, MHCLG, Homes England |
+| **AI** | +5 | artificial intelligence, machine learning, large language model, LLM, generative AI, Azure AI, Copilot, ChatGPT, AI strategy, AI platform, cognitive services, NLP, computer vision, AI foundry, ai engineering, data & ai |
+| **Data** | +5 | data platform, data strategy, data governance, data engineering, data science, data analytics, data warehouse, data lake, business intelligence, ETL, data pipeline, data architecture, data mesh, Power BI, Fabric, Databricks, Snowflake |
 
-A notice must reach `minScore` (default **5**) to be included. Raise it with `--min-score`.
+### Tier 2 — primary service lines (+4)
 
-The full keyword lists are in `src/config.js` under `keywords` and `targetBuyers`.
+| Group | Points | Example keywords |
+|---|---|---|
+| **Delivery** | +4 | agile delivery, delivery manager, product delivery, digital delivery, programme delivery, agile transformation, agile coaching, G-Cloud, Scrum, SAFe, managed service, programme management, portfolio management |
+| **Security** | +4 | cyber security, cybersecurity, information security, security architecture, penetration testing, vulnerability assessment, Cyber Essentials, ISO 27001, NCSC, security assurance, DAST, SAST, threat modelling, IAM |
+| **Cloud Architecture** | +4 | cloud adoption, cloud migration, cloud architecture, cloud strategy, cloud native, enterprise architecture, solution architecture, technical architecture, TOGAF, well-architected, AWS, target operating model |
+
+### Tier 3 — supporting capabilities (+3)
+
+| Group | Points | Example keywords |
+|---|---|---|
+| **Software Engineering** | +3 | software engineering, software development, application development, full stack, microservices, API development, Java, Spring Boot, backend development, frontend development, software architect |
+| **DevOps** | +3 | DevOps, site reliability, SRE, infrastructure as code, Kubernetes, Docker, containerisation, CI/CD, GitOps, platform engineering, cloud infrastructure, Jenkins |
+| **Integration** | +3 | integration architecture, system integration, enterprise integration, API integration, API management, API gateway, middleware, event-driven architecture, integration platform, ERP integration |
+| **Microsoft** | +3 | Power Platform, Power Apps, Power Automate, SharePoint, Dynamics 365, Azure DevOps, Microsoft Azure, M365, Microsoft 365, SQL Server, Microsoft partner |
+| **Government Digital** | +3 | GDS, Government Digital Service, CDDO, service standard, service assessment, alpha phase, beta phase, discovery phase, digital service standard, GOV.UK, digital public service |
+| **Business Design** | +3 | business analysis, business analyst, service design, user research, user experience, UX, operating model, business change, organisational design, process design, business architecture, stakeholder management |
+
+### Tier 4 — context signals (+2)
+
+| Group | Points | Example keywords |
+|---|---|---|
+| **Consulting** | +2 | digital transformation, technology consulting, technology strategy, IT strategy, technology advisory, digital advisory, business transformation, enterprise transformation, strategic consulting |
+
+### Target buyer bonus (+4)
+
+| Group | Points | Example buyers |
+|---|---|---|
+| **Target buyers** | +4 | MoJ, HMCTS, Home Office, DfE, FCDO, Ofgem, MHCLG, Homes England, DLUHC, Cabinet Office, HMRC, DVLA, DVSA, Companies House, housing association, registered provider |
+
+A notice must reach `minScore` (default **7**) to be included. Raise it with `--min-score`.
+
+### Hard exclusions
+
+Any tender whose title or description matches one of the exclusion phrases is dropped entirely, regardless of score — no Jira ticket is created. Current exclusions cover non-digital categories such as facilities management, cleaning, catering, grounds maintenance, civil engineering, and medical staffing.
+
+The full lists are in `src/config.js` under `keywords`, `targetBuyers`, and `exclusions`.
 
 ---
 
@@ -165,7 +202,8 @@ Edit **`src/config.js`** to adjust:
 - Enable/disable individual authenticated portals (each entry in `sources.bravoSolutions`)
 - Keyword groups and point values (`keywords`)
 - Target buyer bonus terms (`targetBuyers`)
-- `minScore` — minimum relevance score to surface a result
+- Hard-exclusion phrases (`exclusions`) — tenders matching any phrase are dropped before scoring
+- `minScore` — minimum relevance score to surface a result (default **7**)
 - `defaultDays` — default lookback window
 - `stages` — which notice stages to fetch (`"planning"`, `"tender"`, `"award"`)
 - `minValue` / `maxValue` — value filters in GBP (0 = disabled)
@@ -204,9 +242,28 @@ To add a new portal, append an entry to the array and add the corresponding env 
 
 ## Google Apps Script Integration
 
-The scoring and Jira push logic is mirrored in `appscript/Code.gs` so it can also run as a **Google Apps Script** triggered daily — useful as a cloud-based backup that doesn't depend on the Mac being online.
+The scoring and Jira push logic lives in `appscript/Code.gs` and runs as a **Google Apps Script** triggered daily at **08:00 UK time** — this is the **primary schedule**. Because it runs in Google's cloud it doesn't depend on the Mac being online or awake.
 
-The Apps Script version covers the four open OCDS sources only (authenticated portal scraping requires Playwright, which can't run in Apps Script).
+The Apps Script version covers the four open OCDS sources only (authenticated portal scraping requires Playwright, which can't run in Apps Script). For the authenticated portals (BravoSolution / JAGGAER) the macOS launchd job still runs as a secondary pass at 10:00 on weekdays.
+
+### One-time trigger setup
+
+Run this once in the Apps Script editor to install the daily trigger:
+
+```
+setupTrigger()   // creates a daily 08:00 Europe/London trigger for runJiraPush
+```
+
+Credentials must be set in **Project Settings → Script Properties**:
+
+```
+JIRA_EMAIL        your Atlassian account email
+JIRA_API_TOKEN    your Jira API token
+JIRA_HOST         e.g. stef-deligia.atlassian.net  (optional)
+JIRA_PROJECT      e.g. GTM  (optional)
+```
+
+The deduplication cache is stored in a Google Sheet created automatically on first run — its ID is saved in Script Properties under `CACHE_SPREADSHEET_ID`.
 
 ### Keeping both versions in sync
 

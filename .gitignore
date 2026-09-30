@@ -6,3 +6,4 @@ data/
 .venv/
 .claude/*
 !.claude/settings.json
+.DS_Store

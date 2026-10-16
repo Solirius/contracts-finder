@@ -28,6 +28,7 @@ export function writeResults(results) {
     title: r.title,
     buyer: r.buyer,
     buyerRegion: r.buyerRegion,
+    totalLots: r.totalLots ?? 0,
     valueGBP: r.valueAmount ?? "",
     published: r.published,
     deadline: r.deadline ?? "",

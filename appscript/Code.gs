@@ -302,6 +302,39 @@ function scoreRelease(release) {
   return { score: score, matched: matched };
 }
 
+function scoreLotKeywords(text) {
+  var score = 0;
+  var matched = [];
+
+  Object.keys(CONFIG.keywords).forEach(function(group) {
+    var kw = CONFIG.keywords[group];
+    for (var i = 0; i < kw.terms.length; i++) {
+      if (text.indexOf(kw.terms[i].toLowerCase()) !== -1) {
+        score += kw.score;
+        matched.push("[" + group + "] " + kw.terms[i]);
+        break;
+      }
+    }
+  });
+
+  return { score: score, matched: matched };
+}
+
+function scoreLots(release) {
+  return ((release.tender && release.tender.lots) || [])
+    .map(function(lot, index) {
+      var text = ((lot.title || "") + " " + (lot.description || "")).toLowerCase();
+      var result = scoreLotKeywords(text);
+      return {
+        id: lot.id || "",
+        title: lot.title || "Untitled lot " + (index + 1),
+        score: result.score,
+        matched: result.matched,
+      };
+    })
+    .filter(function(lot) { return lot.score > 0; });
+}
+
 function noticeUrl(release, source) {
   if (release._url) return release._url;
   var docs = (release.tender && release.tender.documents) || [];
@@ -337,6 +370,8 @@ function extractFields(release, source) {
     description:   (t.description || "").slice(0, 300),
     buyer:         (buyer && buyer.name) || "",
     buyerRegion:   (buyer && buyer.address && buyer.address.region) || "",
+    totalLots:     (t.lots || []).length,
+    lotsOfInterest: scoreLots(release),
     valueCurrency: (t.value && t.value.currency) || "GBP",
     valueAmount:   value,
     published:     release.date || "",
@@ -562,6 +597,16 @@ function buildDescription(tender) {
   if (tender.valueAmount) rows.push(["Value", "£" + tender.valueAmount.toLocaleString()]);
   if (tender.deadline)    rows.push(["Deadline", tender.deadline.slice(0, 10)]);
   rows.push(["Score", tender.score + " — " + tender.matched.join(", ")]);
+  var lotsOfInterest = tender.lotsOfInterest || [];
+  var lotsSummary = lotsOfInterest.length
+    ? lotsOfInterest.map(function(lot) {
+      return lot.title + (lot.id ? " (" + lot.id + ")" : "") + " — " + lot.matched.join(", ");
+    }).join("; ")
+    : tender.totalLots
+      ? "No lots matched the configured keywords"
+      : "No lots listed";
+  rows.push(["Total lots", tender.totalLots || 0]);
+  rows.push(["Lots of interest", lotsSummary]);
 
   var bulletItems = rows.map(function(row) {
     return {

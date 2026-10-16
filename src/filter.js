@@ -27,18 +27,9 @@ export function scoreRelease(release) {
     }
   }
 
-  let score = 0;
-  const matched = [];
-
-  for (const [group, { score: pts, terms }] of Object.entries(config.keywords)) {
-    for (const term of terms) {
-      if (text.includes(term.toLowerCase())) {
-        score += pts;
-        matched.push(`[${group}] ${term}`);
-        break; // one match per group per term set — avoid double-counting
-      }
-    }
-  }
+  const keywordResult = scoreKeywords(text);
+  let score = keywordResult.score;
+  const matched = keywordResult.matched;
 
   // Buyer bonus
   for (const term of config.targetBuyers.terms) {
@@ -77,6 +68,39 @@ function noticeUrl(release, source) {
   return `https://www.contractsfinder.service.gov.uk/Notice/${release.id.replace(/-\d+$/, "")}`;
 }
 
+//Function to support scoring of individual lots
+function scoreKeywords(text) {
+  let score = 0;
+  const matched = [];
+
+  for (const [group, { score: points, terms }] of Object.entries(config.keywords)) {
+    const term = terms.find((term) => text.includes(term.toLowerCase()));
+    if (term) {
+      score += points;
+      matched.push(`[${group}] ${term}`);
+    }
+  }
+
+  return { score, matched };
+}
+
+//Function to score individual lots
+function scoreLots(release) {
+  return (release.tender?.lots ?? [])
+    .map((lot, index) => {
+      const text = `${lot.title ?? ""} ${lot.description ?? ""}`.toLowerCase();
+      const { score, matched } = scoreKeywords(text);
+
+      return {
+        id: lot.id ?? "",
+        title: lot.title ?? `Untitled lot ${index + 1}`,
+        score,
+        matched,
+      };
+    })
+    .filter((lot) => lot.score > 0);
+}
+
 export function extractFields(release, source) {
   const t = release.tender ?? {};
   const buyer = release.parties?.find((p) => p.roles?.includes("buyer"));
@@ -92,6 +116,8 @@ export function extractFields(release, source) {
     description: (t.description ?? "").slice(0, 300),
     buyer: buyer?.name ?? "",
     buyerRegion: buyer?.address?.region ?? "",
+    totalLots: t.lots?.length ?? 0,
+    lotsOfInterest: scoreLots(release),
     valueCurrency: t.value?.currency ?? "GBP",
     valueAmount: value,
     published: release.date ?? "",

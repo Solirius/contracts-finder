@@ -37,12 +37,23 @@ function safeLabel(str) {
 }
 
 function buildDescription(tender) {
+  const lotsOfInterest = tender.lotsOfInterest ?? [];
+  const lotsSummary = lotsOfInterest.length
+    ? lotsOfInterest.map((lot) =>
+      `${lot.title}${lot.id ? ` (${lot.id})` : ""} — ${lot.matched.join(", ")}`
+    ).join("; ")
+    : tender.totalLots
+      ? "No lots matched the configured keywords"
+      : "No lots listed";
+
   const rows = [
     ["Buyer",    tender.buyer],
     ["Stage",    tender.stage],
     ...(tender.value    ? [["Value",    `£${tender.value.toLocaleString()}`]] : []),
     ...(tender.deadline ? [["Deadline", tender.deadline.slice(0, 10)]]       : []),
     ["Score",    `${tender.score} — ${tender.matched.join(", ")}`],
+    ["Total lots", tender.totalLots ?? 0],
+    ["Lots of interest", lotsSummary],
   ];
 
   const bulletItems = rows.map(([label, val]) => ({
